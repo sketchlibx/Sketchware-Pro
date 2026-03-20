@@ -3,13 +3,14 @@
     xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
-    android:layout_height="match_parent">
+    android:layout_height="match_parent"
+    android:background="?attr/colorSurface">
 
     <com.google.android.material.appbar.AppBarLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        app:liftOnScroll="false"
-        app:liftOnScrollColor="@android:color/transparent">
+        app:liftOnScroll="true"
+        app:liftOnScrollColor="?attr/colorSurfaceContainer">
 
         <com.google.android.material.appbar.MaterialToolbar
             android:id="@+id/toolbar"
@@ -19,23 +20,23 @@
             app:title="@string/myprojects_list_menu_title_create_a_new_project" />
     </com.google.android.material.appbar.AppBarLayout>
 
-    <ScrollView
+    <androidx.core.widget.NestedScrollView
         android:layout_width="match_parent"
         android:layout_height="match_parent"
+        android:clipToPadding="false"
+        android:paddingBottom="100dp" 
         app:layout_behavior="@string/appbar_scrolling_view_behavior">
-
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:orientation="vertical"
             android:paddingHorizontal="24dp"
-            android:paddingBottom="40dp">
+            android:paddingTop="24dp">
 
             <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="24dp"
-                android:layout_marginBottom="16dp"
+                android:layout_marginBottom="24dp"
                 android:gravity="center"
                 android:orientation="vertical">
 
@@ -68,7 +69,6 @@
                 android:id="@+id/til_app_name"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="8dp"
                 app:startIconDrawable="@drawable/ic_mtrl_android">
 
                 <com.google.android.material.textfield.TextInputEditText
@@ -83,7 +83,7 @@
                 android:id="@+id/til_package_name"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="12dp"
+                android:layout_marginTop="16dp"
                 app:placeholderText="com.my.newproject"
                 app:startIconDrawable="@drawable/ic_mtrl_package">
 
@@ -99,7 +99,7 @@
                 android:id="@+id/til_project_name"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="12dp"
+                android:layout_marginTop="16dp"
                 app:startIconDrawable="@drawable/ic_mtrl_interests">
 
                 <com.google.android.material.textfield.TextInputEditText
@@ -111,10 +111,10 @@
             </com.google.android.material.textfield.TextInputLayout>
 
             <com.google.android.material.card.MaterialCardView
+                style="?attr/materialCardViewElevatedStyle"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="24dp"
-                style="?attr/materialCardViewElevatedStyle"
                 app:cardElevation="2dp">
 
                 <LinearLayout
@@ -127,7 +127,8 @@
                         android:layout_height="wrap_content"
                         android:gravity="center_vertical"
                         android:orientation="horizontal"
-                        android:padding="8dp">
+                        android:paddingHorizontal="16dp"
+                        android:paddingVertical="8dp">
 
                         <HorizontalScrollView
                             android:layout_width="0dp"
@@ -135,8 +136,7 @@
                             android:layout_weight="1"
                             android:fadingEdge="horizontal"
                             android:fillViewport="true"
-                            android:paddingTop="4dp"
-                            android:paddingBottom="4dp"
+                            android:paddingVertical="4dp"
                             android:requiresFadingEdge="horizontal"
                             android:scrollbars="none">
 
@@ -149,20 +149,19 @@
 
                         <com.google.android.material.divider.MaterialDivider
                             android:layout_width="1dp"
-                            android:layout_height="match_parent"
-                            android:layout_marginVertical="8dp"
-                            app:dividerColor="?attr/colorOutlineVariant"
-                            app:dividerInsetEnd="4dp"
-                            app:dividerInsetStart="8dp" />
+                            android:layout_height="32dp"
+                            android:layout_marginHorizontal="8dp"
+                            app:dividerColor="?attr/colorOutlineVariant" />
 
                         <ImageView
                             android:id="@+id/img_theme_color_help"
                             android:layout_width="40dp"
                             android:layout_height="40dp"
-                            android:padding="8dp"
                             android:background="?attr/selectableItemBackgroundBorderless"
+                            android:padding="8dp"
                             android:scaleType="fitCenter"
-                            android:src="@drawable/ic_mtrl_help" />
+                            android:src="@drawable/ic_mtrl_help"
+                            app:tint="?attr/colorOnSurfaceVariant" />
                     </LinearLayout>
 
                     <ImageView
@@ -179,10 +178,10 @@
             </com.google.android.material.card.MaterialCardView>
 
             <com.google.android.material.card.MaterialCardView
+                style="?attr/materialCardViewElevatedStyle"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="16dp"
-                style="?attr/materialCardViewElevatedStyle"
                 app:cardElevation="2dp">
 
                 <LinearLayout
@@ -242,16 +241,16 @@
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
                         android:clipToPadding="false"
-                        android:paddingHorizontal="4dp" />
+                        android:paddingTop="4dp" />
                 </LinearLayout>
             </com.google.android.material.card.MaterialCardView>
 
             <com.google.android.material.card.MaterialCardView
+                style="?attr/materialCardViewElevatedStyle"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="16dp"
-                android:layout_marginBottom="64dp"
-                style="?attr/materialCardViewElevatedStyle"
+                android:layout_marginBottom="16dp"
                 app:cardElevation="2dp">
 
                 <LinearLayout
@@ -349,7 +348,7 @@
                 </LinearLayout>
             </com.google.android.material.card.MaterialCardView>
         </LinearLayout>
-    </ScrollView>
+    </androidx.core.widget.NestedScrollView>
 
     <LinearLayout
         android:layout_width="match_parent"
