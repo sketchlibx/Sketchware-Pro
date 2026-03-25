@@ -51,6 +51,7 @@ import mod.agus.jcoderz.dex.Dex;
 import mod.agus.jcoderz.dex.FieldId;
 import mod.agus.jcoderz.dex.MethodId;
 import mod.agus.jcoderz.dex.ProtoId;
+import mod.agus.jcoderz.dex.TypeIds;
 import mod.agus.jcoderz.dx.command.dexer.DxContext;
 import mod.agus.jcoderz.dx.command.dexer.Main;
 import mod.agus.jcoderz.dx.merge.CollisionPolicy;
@@ -209,10 +210,9 @@ public class ProjectBuilder {
     }
 
     public boolean isD8Enabled() {
-        return build_settings.getValue(
-                BuildSettings.SETTING_DEXER,
-                BuildSettings.SETTING_DEXER_DX
-        ).equals(BuildSettings.SETTING_DEXER_D8);
+        // 🚀 FEATURE: DX is completely deprecated and cannot handle Java 17 bytecodes.
+        // Forcing D8 compiler as the absolute default for V7.0.0
+        return true;
     }
 
     public String getDxRunningText() {
@@ -290,13 +290,9 @@ public class ProjectBuilder {
 
         /*
          * Add lambda helper classes
-         * Since all versions above java 7 supports lambdas, this should work
+         * For Java 17, D8 handles lambdas, but keeping stubs for ECJ compatibility during resolution
          */
-        if (!build_settings.getValue(BuildSettings.SETTING_JAVA_VERSION,
-                        BuildSettings.SETTING_JAVA_VERSION_1_7)
-                .equals(BuildSettings.SETTING_JAVA_VERSION_1_7)) {
-            classpath.append(":").append(new File(BuiltInLibraries.EXTRACTED_COMPILE_ASSETS_PATH, "core-lambda-stubs.jar").getAbsolutePath());
-        }
+        classpath.append(":").append(new File(BuiltInLibraries.EXTRACTED_COMPILE_ASSETS_PATH, "core-lambda-stubs.jar").getAbsolutePath());
 
         /* Add used built-in libraries to the classpath */
         for (Jp library : builtInLibraryManager.getLibraries()) {
@@ -354,7 +350,9 @@ public class ProjectBuilder {
         }
 
         // remove trailing delimiter
-        classpath.deleteCharAt(classpath.length() - 1);
+        if (classpath.length() > 0) {
+            classpath.deleteCharAt(classpath.length() - 1);
+        }
 
         return classpath.toString();
     }
@@ -542,8 +540,10 @@ public class ProjectBuilder {
              PrintWriter errWriter = new PrintWriter(errOutputStream)) {
 
             ArrayList<String> args = new ArrayList<>();
-            args.add("-" + build_settings.getValue(BuildSettings.SETTING_JAVA_VERSION,
-                    BuildSettings.SETTING_JAVA_VERSION_1_7));
+            // 🚀 FEATURE: V7.0.0 forces Java 17 compilation via ECJ
+            args.add("--release");
+            args.add("17");
+            
             args.add("-nowarn");
             if (!build_settings.getValue(BuildSettings.SETTING_NO_WARNINGS,
                     BuildSettings.SETTING_GENERIC_VALUE_TRUE).equals(BuildSettings.SETTING_GENERIC_VALUE_TRUE)) {

@@ -1,7 +1,6 @@
 package a.a.a;
 
 import static android.text.TextUtils.isEmpty;
-import static com.besome.sketch.Config.VAR_DEFAULT_TARGET_SDK_VERSION;
 
 import android.Manifest;
 import android.app.Service;
@@ -31,6 +30,9 @@ import pro.sketchware.utility.FileUtil;
 import pro.sketchware.xml.XmlBuilder;
 
 public class Ix {
+    // 🚀 FEATURE: Updated default target SDK to API 36 (Android 16) for V7.0.0
+    public static final int VAR_DEFAULT_TARGET_SDK_VERSION = 36;
+    
     private final BuiltInLibraryManager builtInLibraryManager;
     public XmlBuilder a = new XmlBuilder("manifest");
     public ArrayList<ProjectFileBean> b;
@@ -50,6 +52,8 @@ public class Ix {
         buildSettings = new BuildSettings(jq.sc_id);
         frc = new FileResConfig(c.sc_id);
         a.addAttribute("xmlns", "android", "http://schemas.android.com/apk/res/android");
+        // Added tools namespace for modern attributes
+        a.addAttribute("xmlns", "tools", "http://schemas.android.com/tools");
     }
 
     /**
@@ -178,9 +182,12 @@ public class Ix {
         XmlBuilder actionTag = new XmlBuilder("action");
         actionTag.addAttribute("android", "name", receiverName);
         intentFilterTag.addChildNode(actionTag);
+        
+        // BUG FIX: Always declare exported for components with intent-filters in API 31+
         if (targetsSdkVersion31OrHigher) {
             receiverTag.addAttribute("android", "exported", "true");
         }
+        
         receiverTag.addChildNode(intentFilterTag);
         applicationTag.addChildNode(receiverTag);
     }
@@ -202,6 +209,8 @@ public class Ix {
         XmlBuilder serviceTag = new XmlBuilder("service");
         serviceTag.addAttribute("android", "name", serviceName);
         serviceTag.addAttribute("android", "enabled", "true");
+        // BUG FIX: Explicitly define exported status for standalone services to avoid crash
+        serviceTag.addAttribute("android", "exported", "false"); 
         applicationTag.addChildNode(serviceTag);
     }
 
@@ -457,6 +466,12 @@ public class Ix {
             writePermission(a, Manifest.permission.WAKE_LOCK);
             writePermission(a, "com.google.android.c2dm.permission.RECEIVE");
         }
+        
+        // BUG FIX: Required for API 33+ (Android 13+) notifications
+        if (targetSdkVersion >= 33) {
+            writePermission(a, "android.permission.POST_NOTIFICATIONS");
+        }
+        
         AndroidManifestInjector.getP(a, c.sc_id);
 
         if (c.isAdMobEnabled || c.isTextToSpeechUsed || c.isSpeechToTextUsed) {
@@ -504,6 +519,9 @@ public class Ix {
         applicationTag.addAttribute("android", "allowBackup", "true");
         applicationTag.addAttribute("android", "icon", "@mipmap/ic_launcher");
         applicationTag.addAttribute("android", "label", "@string/app_name");
+        
+        // BUG FIX: Essential for AAPT2 and modern components parsing
+        applicationTag.addAttribute("android", "appComponentFactory", "androidx.core.app.CoreComponentFactory");
 
         String applicationClassName = settings.getValue(ProjectSettings.SETTING_APPLICATION_CLASS, ".SketchApplication");
         applicationTag.addAttribute("android", "name", applicationClassName);
@@ -558,7 +576,11 @@ public class Ix {
                         activityTag.addAttribute("android", "windowSoftInputMode", keyboardSetting);
                     }
                 }
-                if (projectFileBean.fileName.equals(AndroidManifestInjector.getLauncherActivity(c.sc_id))) {
+                
+                // BUG FIX: Activity Exported enforcement for API 31+
+                boolean hasIntentFilter = projectFileBean.fileName.equals(AndroidManifestInjector.getLauncherActivity(c.sc_id));
+                
+                if (hasIntentFilter) {
                     XmlBuilder intentFilterTag = new XmlBuilder("intent-filter");
                     XmlBuilder actionTag = new XmlBuilder("action");
                     actionTag.addAttribute("android", "name", Intent.ACTION_MAIN);
@@ -566,11 +588,16 @@ public class Ix {
                     XmlBuilder categoryTag = new XmlBuilder("category");
                     categoryTag.addAttribute("android", "name", Intent.CATEGORY_LAUNCHER);
                     intentFilterTag.addChildNode(categoryTag);
+                    
                     if (targetsSdkVersion31OrHigher && !AndroidManifestInjector.isActivityExportedUsed(c.sc_id, javaName)) {
                         activityTag.addAttribute("android", "exported", "true");
                     }
                     activityTag.addChildNode(intentFilterTag);
+                } else if (targetsSdkVersion31OrHigher && !AndroidManifestInjector.isActivityExportedUsed(c.sc_id, javaName)) {
+                    // Regular activities without intent filters MUST explicitly declare exported="false"
+                    activityTag.addAttribute("android", "exported", "false");
                 }
+                
                 applicationTag.addChildNode(activityTag);
             }
             if (projectFileBean.fileName.equals("debug")) {
@@ -583,6 +610,11 @@ public class Ix {
             activityTag.addAttribute("android", "name", ".DebugActivity");
             activityTag.addAttribute("android", "screenOrientation", "portrait");
             activityTag.addAttribute("android", "theme", "@style/AppTheme.DebugActivity");
+            
+            // BUG FIX: Explicit exported for API 31+
+            if (targetsSdkVersion31OrHigher) {
+                activityTag.addAttribute("android", "exported", "false");
+            }
             applicationTag.addChildNode(activityTag);
         }
         if (c.isAdMobEnabled) {
@@ -661,8 +693,7 @@ public class Ix {
             }
         }
         a.addChildNode(applicationTag);
-        // Needed, as crashing on my SM-A526B with Android 12 / One UI 4.1 / firmware build A526BFXXS1CVD1 otherwise
-        //noinspection RegExpRedundantEscape
+        
         return AndroidManifestInjector.mHolder(a.toCode(), c.sc_id).replaceAll("\\$\\{applicationId\\}", packageName);
     }
 
@@ -670,6 +701,8 @@ public class Ix {
         XmlBuilder activityTag = new XmlBuilder("activity");
         boolean specifiedActivityName = false;
         boolean specifiedConfigChanges = false;
+        boolean specifiedExported = false;
+        
         for (HashMap<String, Object> hashMap : activityAttrs) {
             if (hashMap.containsKey("name") && hashMap.containsKey("value")) {
                 Object nameObject = hashMap.get("name");
@@ -683,6 +716,8 @@ public class Ix {
                             specifiedActivityName = true;
                         } else if (value.contains("android:configChanges=")) {
                             specifiedConfigChanges = true;
+                        } else if (value.contains("android:exported=")) {
+                            specifiedExported = true;
                         }
                     }
                 }
@@ -694,6 +729,12 @@ public class Ix {
         if (!specifiedConfigChanges) {
             activityTag.addAttribute("android", "configChanges", "orientation|screenSize");
         }
+        
+        // BUG FIX: Strict Exported Enforcement for Extra injected Java files
+        if (targetsSdkVersion31OrHigher && !specifiedExported) {
+             activityTag.addAttribute("android", "exported", "false");
+        }
+        
         applicationTag.addChildNode(activityTag);
     }
 
