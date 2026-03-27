@@ -137,7 +137,6 @@ public class SrcCodeEditor extends BaseAppCompatActivity {
                 languageId = 2;
                 break;
         }
-
     }
 
     public static String prettifyXml(String xml, int indentAmount, Intent extras) {
@@ -282,6 +281,7 @@ public class SrcCodeEditor extends BaseAppCompatActivity {
         scId = getIntent().getStringExtra("sc_id");
         activityName = getIntent().getStringExtra("activity_name");
 
+        // PRO FEATURE: Setting custom developer font & comfortable line spacing
         binding.editor.setTypefaceText(EditorUtils.getTypeface(this));
         binding.editor.setLineSpacing(2f, 1.1f);
         binding.editor.setTextSize(16);
@@ -323,9 +323,8 @@ public class SrcCodeEditor extends BaseAppCompatActivity {
         loadCESettings(this, binding.editor, "act", true);
         loadToolbar();
         
+        // Setup Toolbar Navigation
         binding.toolbar.setNavigationOnClickListener(v -> onBackPressed());
-        binding.btnCancel.setOnClickListener(v -> onBackPressed());
-        binding.btnSave.setOnClickListener(v -> save());
 
         UI.addSystemWindowInsetToPadding(binding.appBarLayout, true, true, true, false);
         UI.addSystemWindowInsetToMargin(binding.editor, true, false, true, true);
@@ -394,6 +393,8 @@ public class SrcCodeEditor extends BaseAppCompatActivity {
         toolbarMenu.add(Menu.NONE, Menu.NONE, Menu.NONE, "Undo").setIcon(AppCompatResources.getDrawable(this, R.drawable.ic_mtrl_undo)).setShowAsAction(MenuItem.SHOW_AS_ACTION_ALWAYS);
         toolbarMenu.add(Menu.NONE, Menu.NONE, Menu.NONE, "Redo").setIcon(AppCompatResources.getDrawable(this, R.drawable.ic_mtrl_redo)).setShowAsAction(MenuItem.SHOW_AS_ACTION_ALWAYS);
         
+        toolbarMenu.add(Menu.NONE, Menu.NONE, Menu.NONE, "Save").setIcon(AppCompatResources.getDrawable(this, R.drawable.ic_mtrl_save)).setShowAsAction(MenuItem.SHOW_AS_ACTION_ALWAYS);
+        
         toolbarMenu.add(Menu.NONE, Menu.NONE, Menu.NONE, "Find & Replace").setShowAsAction(MenuItem.SHOW_AS_ACTION_NEVER);
         toolbarMenu.add(Menu.NONE, Menu.NONE, Menu.NONE, "Pretty print").setShowAsAction(MenuItem.SHOW_AS_ACTION_NEVER);
         
@@ -416,6 +417,10 @@ public class SrcCodeEditor extends BaseAppCompatActivity {
 
                 case "Redo":
                     binding.editor.redo();
+                    break;
+                    
+                case "Save":
+                    save();
                     break;
 
                 case "Pretty print":
