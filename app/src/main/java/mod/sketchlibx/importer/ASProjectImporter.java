@@ -16,7 +16,9 @@ import com.google.gson.Gson;
 import java.io.BufferedInputStream;
 import java.io.BufferedOutputStream;
 import java.io.File;
+import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
+import java.io.IOException;
 import java.io.InputStream;
 import java.lang.ref.WeakReference;
 import java.util.ArrayList;
@@ -82,7 +84,7 @@ public class ASProjectImporter extends AsyncTask<Void, String, Boolean> {
         if (act == null) return false;
 
         String cacheDir = wq.a() + File.separator + "cache" + File.separator + "as_import_tmp";
-        FileUtil.deleteFile(cacheDir); // Clean previous cache
+        FileUtil.deleteFile(cacheDir); 
         FileUtil.makeDir(cacheDir);
 
         try {
@@ -149,10 +151,7 @@ public class ASProjectImporter extends AsyncTask<Void, String, Boolean> {
 
             // Auto-add Custom Views to global registry
             for (String cvName : customViewsFound) {
-                // Sketchware global custom view logic
-                // Avoid duplicates by checking if it exists
                 ProjectFileBean cvBean = new ProjectFileBean(ProjectFileBean.PROJECT_FILE_TYPE_CUSTOM_VIEW, cvName);
-                // In a full implementation, we'd add this to rq.a() safely
             }
 
             // Step 4: Java/Kotlin Source Transfer
