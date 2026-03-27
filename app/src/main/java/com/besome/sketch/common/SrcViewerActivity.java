@@ -1,22 +1,29 @@
 package com.besome.sketch.common;
 
 import android.os.Bundle;
+import android.text.Editable;
+import android.text.TextWatcher;
 import android.view.Gravity;
+import android.view.Menu;
+import android.view.MenuItem;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.AdapterView;
-import android.widget.BaseAdapter;
+import android.widget.ArrayAdapter;
 import android.widget.LinearLayout;
+import android.widget.ListView;
 import android.widget.NumberPicker;
 
+import androidx.appcompat.content.res.AppCompatResources;
 import androidx.core.graphics.Insets;
 import androidx.core.view.ViewCompat;
 import androidx.core.view.WindowInsetsCompat;
 
 import com.besome.sketch.beans.SrcCodeBean;
-import com.besome.sketch.ctrls.CommonSpinnerItem;
 import com.besome.sketch.lib.base.BaseAppCompatActivity;
 import com.google.android.material.dialog.MaterialAlertDialogBuilder;
+import com.google.android.material.textfield.TextInputEditText;
+import com.google.android.material.textfield.TextInputLayout;
 
 import java.util.ArrayList;
 
@@ -36,45 +43,36 @@ public class SrcViewerActivity extends BaseAppCompatActivity {
     private ArrayList<SrcCodeBean> sourceCodeBeans;
 
     private String currentFileName;
-    private int editorFontSize = 12;
+    private int editorFontSize = 14; // Default to 14 for better readability
 
     @Override
     public void onCreate(Bundle savedInstanceState) {
+        enableEdgeToEdgeNoContrast();
         super.onCreate(savedInstanceState);
         binding = SrcViewerBinding.inflate(getLayoutInflater());
         setContentView(binding.getRoot());
+
         currentFileName = getIntent().hasExtra("current") ? getIntent().getStringExtra("current") : "";
         sc_id = savedInstanceState != null ? savedInstanceState.getString("sc_id") : getIntent().getStringExtra("sc_id");
 
-        ViewCompat.setOnApplyWindowInsetsListener(binding.getRoot(), (v, insets) -> {
+        ViewCompat.setOnApplyWindowInsetsListener(binding.appBarLayout, (v, insets) -> {
             Insets systemBars = insets.getInsets(WindowInsetsCompat.Type.systemBars());
-            v.setPadding(v.getPaddingLeft(), systemBars.top, v.getPaddingRight(), systemBars.bottom);
+            v.setPadding(v.getPaddingLeft(), systemBars.top, v.getPaddingRight(), v.getPaddingBottom());
             return insets;
         });
 
-        configureEditor();
-
-        binding.changeFontSize.setOnClickListener(v -> showChangeFontSizeDialog());
-
-        binding.filesListSpinner.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
-            @Override
-            public void onItemSelected(AdapterView<?> parent, View view, int position, long id) {
-                SrcCodeBean bean = sourceCodeBeans.get(position);
-                binding.editor.setText(bean.source);
-                currentFileName = bean.srcFileName;
-                if (currentFileName.endsWith(".xml")) {
-                    EditorUtils.loadXmlConfig(binding.editor);
-                } else {
-                    EditorUtils.loadJavaConfig(binding.editor);
-                }
-            }
-
-            @Override
-            public void onNothingSelected(AdapterView<?> parent) {
-            }
+        ViewCompat.setOnApplyWindowInsetsListener(binding.editor, (v, insets) -> {
+            Insets systemBars = insets.getInsets(WindowInsetsCompat.Type.systemBars());
+            v.setPadding(v.getPaddingLeft(), v.getPaddingTop(), v.getPaddingRight(), systemBars.bottom);
+            return insets;
         });
 
-        k(); // show loading
+        binding.toolbar.setNavigationOnClickListener(v -> onBackPressed());
+        setupToolbarMenu();
+
+        configureEditor();
+
+        k(); // show loading dialog
 
         new Thread(() -> {
             var yq = new yq(getBaseContext(), sc_id);
@@ -88,17 +86,23 @@ public class SrcViewerActivity extends BaseAppCompatActivity {
 
             try {
                 runOnUiThread(() -> {
-                    if (sourceCodeBeans == null) {
+                    if (sourceCodeBeans == null || sourceCodeBeans.isEmpty()) {
                         bB.b(getApplicationContext(), Helper.getResString(R.string.common_error_unknown), bB.TOAST_NORMAL).show();
+                        finish();
                     } else {
-                        binding.filesListSpinner.setAdapter(new FilesListSpinnerAdapter());
+                        // Find current file or default to first
+                        boolean fileFound = false;
                         for (SrcCodeBean src : sourceCodeBeans) {
                             if (src.srcFileName.equals(currentFileName)) {
-                                binding.filesListSpinner.setSelection(sourceCodeBeans.indexOf(src));
+                                fileFound = true;
                                 break;
                             }
                         }
-                        binding.editor.setText(sourceCodeBeans.get(binding.filesListSpinner.getSelectedItemPosition()).source);
+                        if (!fileFound) {
+                            currentFileName = sourceCodeBeans.get(0).srcFileName;
+                        }
+                        
+                        loadSelectedFile(currentFileName);
                         h(); // hide loading
                     }
                 });
@@ -108,23 +112,115 @@ public class SrcViewerActivity extends BaseAppCompatActivity {
         }).start();
     }
 
+    private void setupToolbarMenu() {
+        Menu menu = binding.toolbar.getMenu();
+        menu.clear();
+        
+        menu.add(Menu.NONE, 1, Menu.NONE, "Search File")
+                .setIcon(AppCompatResources.getDrawable(this, R.drawable.ic_search_white_24dp))
+                .setShowAsAction(MenuItem.SHOW_AS_ACTION_ALWAYS);
+                
+        menu.add(Menu.NONE, 2, Menu.NONE, "Change Font Size")
+                .setIcon(AppCompatResources.getDrawable(this, R.drawable.ic_mtrl_formattext))
+                .setShowAsAction(MenuItem.SHOW_AS_ACTION_ALWAYS);
+
+        binding.toolbar.setOnMenuItemClickListener(item -> {
+            if (item.getItemId() == 1) {
+                if (sourceCodeBeans != null) {
+                    showFileSearchDialog();
+                }
+                return true;
+            } else if (item.getItemId() == 2) {
+                showChangeFontSizeDialog();
+                return true;
+            }
+            return false;
+        });
+    }
+
     private void configureEditor() {
         binding.editor.setTypefaceText(EditorUtils.getTypeface(this));
         binding.editor.setEditable(false);
         binding.editor.setTextSize(editorFontSize);
         binding.editor.setPinLineNumber(true);
+        binding.editor.setLineSpacing(2f, 1.1f);
+    }
 
-        if (currentFileName.endsWith(".xml")) {
-            EditorUtils.loadXmlConfig(binding.editor);
-        } else {
-            EditorUtils.loadJavaConfig(binding.editor);
+    private void loadSelectedFile(String fileName) {
+        for (SrcCodeBean bean : sourceCodeBeans) {
+            if (bean.srcFileName.equals(fileName)) {
+                binding.editor.setText(bean.source);
+                currentFileName = bean.srcFileName;
+                binding.toolbar.setSubtitle(currentFileName);
+                
+                // Switch Language highlighting
+                if (currentFileName.endsWith(".xml")) {
+                    EditorUtils.loadXmlConfig(binding.editor);
+                } else if (currentFileName.endsWith(".java")) {
+                    EditorUtils.loadJavaConfig(binding.editor);
+                } else if (currentFileName.endsWith(".kt")) {
+                     // Adding Kotlin highlighting support just in case
+                     EditorUtils.loadJavaConfig(binding.editor); 
+                }
+                break;
+            }
         }
     }
 
-    @Override
-    public void onSaveInstanceState(Bundle outState) {
-        outState.putString("sc_id", sc_id);
-        super.onSaveInstanceState(outState);
+    private void showFileSearchDialog() {
+        MaterialAlertDialogBuilder builder = new MaterialAlertDialogBuilder(this);
+        builder.setTitle("Search File");
+
+        LinearLayout layout = new LinearLayout(this);
+        layout.setOrientation(LinearLayout.VERTICAL);
+        layout.setPadding(32, 24, 32, 24);
+
+        TextInputLayout til = new TextInputLayout(this);
+        til.setHint("Type file name (e.g. MainActivity.java)");
+        TextInputEditText searchInput = new TextInputEditText(til.getContext());
+        searchInput.setSingleLine(true);
+        til.addView(searchInput);
+        layout.addView(til);
+
+        ListView listView = new ListView(this);
+        layout.addView(listView);
+
+        // Prepare lists
+        ArrayList<String> allFileNames = new ArrayList<>();
+        for (SrcCodeBean bean : sourceCodeBeans) {
+            allFileNames.add(bean.srcFileName);
+        }
+        
+        ArrayAdapter<String> adapter = new ArrayAdapter<>(this, android.R.layout.simple_list_item_1, allFileNames);
+        listView.setAdapter(adapter);
+
+        builder.setView(layout);
+        builder.setNegativeButton(android.R.string.cancel, null);
+        
+        androidx.appcompat.app.AlertDialog dialog = builder.create();
+
+        // Search Filter Logic
+        searchInput.addTextChangedListener(new TextWatcher() {
+            @Override
+            public void beforeTextChanged(CharSequence s, int start, int count, int after) {}
+
+            @Override
+            public void onTextChanged(CharSequence s, int start, int before, int count) {
+                adapter.getFilter().filter(s);
+            }
+
+            @Override
+            public void afterTextChanged(Editable s) {}
+        });
+
+        // Click to load
+        listView.setOnItemClickListener((parent, view, position, id) -> {
+            String selectedFileName = adapter.getItem(position);
+            loadSelectedFile(selectedFileName);
+            dialog.dismiss();
+        });
+
+        dialog.show();
     }
 
     private void showChangeFontSizeDialog() {
@@ -135,10 +231,9 @@ public class SrcViewerActivity extends BaseAppCompatActivity {
         picker.setValue(editorFontSize);
 
         LinearLayout layout = new LinearLayout(this);
-        layout.addView(picker, new LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.WRAP_CONTENT,
-                LinearLayout.LayoutParams.WRAP_CONTENT,
-                Gravity.CENTER));
+        layout.setGravity(Gravity.CENTER);
+        layout.setPadding(0, 32, 0, 0);
+        layout.addView(picker);
 
         new MaterialAlertDialogBuilder(this)
                 .setTitle("Select font size")
@@ -152,39 +247,9 @@ public class SrcViewerActivity extends BaseAppCompatActivity {
                 .show();
     }
 
-    public class FilesListSpinnerAdapter extends BaseAdapter {
-
-        private View getCustomSpinnerView(int position, View view, boolean isCurrentlyViewingFile) {
-            CommonSpinnerItem spinnerItem = view != null ? (CommonSpinnerItem) view :
-                    new CommonSpinnerItem(SrcViewerActivity.this);
-            spinnerItem.a(sourceCodeBeans.get(position).srcFileName, isCurrentlyViewingFile);
-            return spinnerItem;
-        }
-
-        @Override
-        public int getCount() {
-            return sourceCodeBeans.size();
-        }
-
-        @Override
-        public View getDropDownView(int position, View convertView, ViewGroup parent) {
-            boolean isCheckmarkVisible = binding.filesListSpinner.getSelectedItemPosition() == position;
-            return getCustomSpinnerView(position, convertView, isCheckmarkVisible);
-        }
-
-        @Override
-        public Object getItem(int position) {
-            return sourceCodeBeans.get(position);
-        }
-
-        @Override
-        public long getItemId(int position) {
-            return position;
-        }
-
-        @Override
-        public View getView(int position, View convertView, ViewGroup parent) {
-            return getCustomSpinnerView(position, convertView, false);
-        }
+    @Override
+    public void onSaveInstanceState(Bundle outState) {
+        outState.putString("sc_id", sc_id);
+        super.onSaveInstanceState(outState);
     }
 }

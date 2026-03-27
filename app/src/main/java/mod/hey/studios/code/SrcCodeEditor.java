@@ -230,9 +230,6 @@ public class SrcCodeEditor extends BaseAppCompatActivity {
         }
     }
 
-    /**
-     * Adds a specified amount of tabs.
-     */
     public static void a(StringBuilder code, int tabAmount) {
         for (int i = 0; i < tabAmount; ++i) {
             code.append('\t');
@@ -286,6 +283,7 @@ public class SrcCodeEditor extends BaseAppCompatActivity {
         activityName = getIntent().getStringExtra("activity_name");
 
         binding.editor.setTypefaceText(EditorUtils.getTypeface(this));
+        binding.editor.setLineSpacing(2f, 1.1f);
         binding.editor.setTextSize(16);
 
         if (fromAndroidManifest) {
@@ -324,6 +322,10 @@ public class SrcCodeEditor extends BaseAppCompatActivity {
 
         loadCESettings(this, binding.editor, "act", true);
         loadToolbar();
+        
+        binding.toolbar.setNavigationOnClickListener(v -> onBackPressed());
+        binding.btnCancel.setOnClickListener(v -> onBackPressed());
+        binding.btnSave.setOnClickListener(v -> save());
 
         UI.addSystemWindowInsetToPadding(binding.appBarLayout, true, true, true, false);
         UI.addSystemWindowInsetToMargin(binding.editor, true, false, true, true);
@@ -341,7 +343,7 @@ public class SrcCodeEditor extends BaseAppCompatActivity {
                     if (activitiesComponents.get(i).get("name").equals(activityName)) {
                         activitiesComponents.get(i).put("value", beforeContent);
                         FileUtil.writeFile(filePath, getGson().toJson(activitiesComponents));
-                        SketchwareUtil.toast("Saved");
+                        SketchwareUtil.toast("Saved successfully!");
                         return;
                     }
                 }
@@ -360,7 +362,7 @@ public class SrcCodeEditor extends BaseAppCompatActivity {
             }
         } else FileUtil.writeFile(getIntent().getStringExtra("content"), beforeContent);
 
-        SketchwareUtil.toast("Saved");
+        SketchwareUtil.toast("Saved successfully!");
     }
 
     @Override
@@ -383,129 +385,130 @@ public class SrcCodeEditor extends BaseAppCompatActivity {
     }
 
     private void loadToolbar() {
-        {
-            String title = getIntent().getStringExtra("title");
-            binding.toolbar.setTitle(title);
-            SharedPreferences local_pref = getSharedPreferences("hsce", Activity.MODE_PRIVATE);
-            Menu toolbarMenu = binding.toolbar.getMenu();
-            toolbarMenu.clear();
-            toolbarMenu.add(Menu.NONE, Menu.NONE, Menu.NONE, "Undo").setIcon(AppCompatResources.getDrawable(this, R.drawable.ic_mtrl_undo)).setShowAsAction(MenuItem.SHOW_AS_ACTION_ALWAYS);
-            toolbarMenu.add(Menu.NONE, Menu.NONE, Menu.NONE, "Redo").setIcon(AppCompatResources.getDrawable(this, R.drawable.ic_mtrl_redo)).setShowAsAction(MenuItem.SHOW_AS_ACTION_ALWAYS);
-            toolbarMenu.add(Menu.NONE, Menu.NONE, Menu.NONE, "Save").setIcon(AppCompatResources.getDrawable(this, R.drawable.ic_mtrl_save)).setShowAsAction(MenuItem.SHOW_AS_ACTION_ALWAYS);
-            if (isFileInLayoutFolder() && getIntent().hasExtra("sc_id")) {
-                toolbarMenu.add(Menu.NONE, Menu.NONE, Menu.NONE, "Layout Preview");
-            }
-            toolbarMenu.add(Menu.NONE, Menu.NONE, Menu.NONE, "Find & Replace");
-            toolbarMenu.add(Menu.NONE, Menu.NONE, Menu.NONE, "Word wrap").setCheckable(true).setChecked(local_pref.getBoolean("act_ww", false));
-            toolbarMenu.add(Menu.NONE, Menu.NONE, Menu.NONE, "Pretty print");
-            toolbarMenu.add(Menu.NONE, Menu.NONE, Menu.NONE, "Select language");
-            toolbarMenu.add(Menu.NONE, Menu.NONE, Menu.NONE, "Select theme");
-            toolbarMenu.add(Menu.NONE, Menu.NONE, Menu.NONE, "Auto complete").setCheckable(true).setChecked(local_pref.getBoolean("act_ac", true));
-            toolbarMenu.add(Menu.NONE, Menu.NONE, Menu.NONE, "Auto complete symbol pair").setCheckable(true).setChecked(local_pref.getBoolean("act_acsp", true));
-
-            binding.toolbar.setOnMenuItemClickListener(item -> {
-                String title1 = item.getTitle().toString();
-                switch (title1) {
-                    case "Undo":
-                        binding.editor.undo();
-                        break;
-
-                    case "Redo":
-                        binding.editor.redo();
-                        break;
-
-                    case "Save":
-                        save();
-                        break;
-
-                    case "Pretty print":
-                        if (getIntent().hasExtra("java")) {
-                            StringBuilder b = new StringBuilder();
-
-                            for (String line : binding.editor.getText().toString().split("\n")) {
-                                String trims = (line + "X").trim();
-                                trims = trims.substring(0, trims.length() - 1);
-
-                                b.append(trims);
-                                b.append("\n");
-                            }
-
-                            boolean err = false;
-                            String ss = b.toString();
-
-                            try {
-                                ss = Lx.j(ss, true);
-                            } catch (Exception e) {
-                                err = true;
-                                SketchwareUtil.toastError("Your code contains incorrectly nested parentheses");
-                            }
-
-                            if (!err) binding.editor.setText(ss);
-
-                        } else if (getIntent().hasExtra("xml")) {
-                            String format = prettifyXml(binding.editor.getText().toString(), 4, getIntent());
-
-                            if (format != null) {
-                                binding.editor.setText(format);
-                            } else {
-                                SketchwareUtil.toastError("Failed to format XML file", Toast.LENGTH_LONG);
-                            }
-                        } else {
-                            SketchwareUtil.toast("Only Java and XML files can be formatted");
-                        }
-                        break;
-
-                    case "Select language":
-                        showSwitchLanguageDialog(this, binding.editor, (dialog, which) -> {
-                            selectLanguage(binding.editor, which);
-                            dialog.dismiss();
-                        });
-                        break;
-
-                    case "Find & Replace":
-                        binding.editor.getSearcher().stopSearch();
-                        binding.editor.beginSearchMode();
-                        break;
-
-                    case "Select theme":
-                        showSwitchThemeDialog(this, binding.editor, (dialog, which) -> {
-                            selectTheme(binding.editor, which);
-                            pref.edit().putInt("act_theme", which).apply();
-                            dialog.dismiss();
-                        });
-                        break;
-
-                    case "Word wrap":
-                        item.setChecked(!item.isChecked());
-                        binding.editor.setWordwrap(item.isChecked());
-
-                        pref.edit().putBoolean("act_ww", item.isChecked()).apply();
-                        break;
-
-                    case "Auto complete symbol pair":
-                        item.setChecked(!item.isChecked());
-                        binding.editor.getProps().symbolPairAutoCompletion = item.isChecked();
-
-                        pref.edit().putBoolean("act_acsp", item.isChecked()).apply();
-                        break;
-
-                    case "Auto complete":
-                        item.setChecked(!item.isChecked());
-
-                        binding.editor.getComponent(EditorAutoCompletion.class).setEnabled(item.isChecked());
-                        pref.edit().putBoolean("act_ac", item.isChecked()).apply();
-                        break;
-
-                    case "Layout Preview":
-                        toLayoutPreview();
-                        break;
-
-                    default:
-                        return false;
-                }
-                return true;
-            });
+        String title = getIntent().getStringExtra("title");
+        binding.toolbar.setTitle(title);
+        SharedPreferences local_pref = getSharedPreferences("hsce", Activity.MODE_PRIVATE);
+        Menu toolbarMenu = binding.toolbar.getMenu();
+        toolbarMenu.clear();
+        
+        toolbarMenu.add(Menu.NONE, Menu.NONE, Menu.NONE, "Undo").setIcon(AppCompatResources.getDrawable(this, R.drawable.ic_mtrl_undo)).setShowAsAction(MenuItem.SHOW_AS_ACTION_ALWAYS);
+        toolbarMenu.add(Menu.NONE, Menu.NONE, Menu.NONE, "Redo").setIcon(AppCompatResources.getDrawable(this, R.drawable.ic_mtrl_redo)).setShowAsAction(MenuItem.SHOW_AS_ACTION_ALWAYS);
+        
+        toolbarMenu.add(Menu.NONE, Menu.NONE, Menu.NONE, "Find & Replace").setShowAsAction(MenuItem.SHOW_AS_ACTION_NEVER);
+        toolbarMenu.add(Menu.NONE, Menu.NONE, Menu.NONE, "Pretty print").setShowAsAction(MenuItem.SHOW_AS_ACTION_NEVER);
+        
+        if (isFileInLayoutFolder() && getIntent().hasExtra("sc_id")) {
+            toolbarMenu.add(Menu.NONE, Menu.NONE, Menu.NONE, "Layout Preview").setShowAsAction(MenuItem.SHOW_AS_ACTION_NEVER);
         }
+        
+        toolbarMenu.add(Menu.NONE, Menu.NONE, Menu.NONE, "Select language").setShowAsAction(MenuItem.SHOW_AS_ACTION_NEVER);
+        toolbarMenu.add(Menu.NONE, Menu.NONE, Menu.NONE, "Select theme").setShowAsAction(MenuItem.SHOW_AS_ACTION_NEVER);
+        toolbarMenu.add(Menu.NONE, Menu.NONE, Menu.NONE, "Word wrap").setCheckable(true).setChecked(local_pref.getBoolean("act_ww", false)).setShowAsAction(MenuItem.SHOW_AS_ACTION_NEVER);
+        toolbarMenu.add(Menu.NONE, Menu.NONE, Menu.NONE, "Auto complete").setCheckable(true).setChecked(local_pref.getBoolean("act_ac", true)).setShowAsAction(MenuItem.SHOW_AS_ACTION_NEVER);
+        toolbarMenu.add(Menu.NONE, Menu.NONE, Menu.NONE, "Auto complete symbol pair").setCheckable(true).setChecked(local_pref.getBoolean("act_acsp", true)).setShowAsAction(MenuItem.SHOW_AS_ACTION_NEVER);
+
+        binding.toolbar.setOnMenuItemClickListener(item -> {
+            String title1 = item.getTitle().toString();
+            switch (title1) {
+                case "Undo":
+                    binding.editor.undo();
+                    break;
+
+                case "Redo":
+                    binding.editor.redo();
+                    break;
+
+                case "Pretty print":
+                    if (getIntent().hasExtra("java")) {
+                        StringBuilder b = new StringBuilder();
+
+                        for (String line : binding.editor.getText().toString().split("\n")) {
+                            String trims = (line + "X").trim();
+                            trims = trims.substring(0, trims.length() - 1);
+
+                            b.append(trims);
+                            b.append("\n");
+                        }
+
+                        boolean err = false;
+                        String ss = b.toString();
+
+                        try {
+                            ss = Lx.j(ss, true);
+                        } catch (Exception e) {
+                            err = true;
+                            SketchwareUtil.toastError("Your code contains incorrectly nested parentheses");
+                        }
+
+                        if (!err) {
+                            binding.editor.setText(ss);
+                            SketchwareUtil.toast("Code Formatted!");
+                        }
+
+                    } else if (getIntent().hasExtra("xml")) {
+                        String format = prettifyXml(binding.editor.getText().toString(), 4, getIntent());
+
+                        if (format != null) {
+                            binding.editor.setText(format);
+                            SketchwareUtil.toast("XML Formatted!");
+                        } else {
+                            SketchwareUtil.toastError("Failed to format XML file", Toast.LENGTH_LONG);
+                        }
+                    } else {
+                        SketchwareUtil.toast("Only Java and XML files can be formatted");
+                    }
+                    break;
+
+                case "Select language":
+                    showSwitchLanguageDialog(this, binding.editor, (dialog, which) -> {
+                        selectLanguage(binding.editor, which);
+                        dialog.dismiss();
+                    });
+                    break;
+
+                case "Find & Replace":
+                    binding.editor.getSearcher().stopSearch();
+                    binding.editor.beginSearchMode();
+                    break;
+
+                case "Select theme":
+                    showSwitchThemeDialog(this, binding.editor, (dialog, which) -> {
+                        selectTheme(binding.editor, which);
+                        pref.edit().putInt("act_theme", which).apply();
+                        dialog.dismiss();
+                    });
+                    break;
+
+                case "Word wrap":
+                    item.setChecked(!item.isChecked());
+                    binding.editor.setWordwrap(item.isChecked());
+
+                    pref.edit().putBoolean("act_ww", item.isChecked()).apply();
+                    break;
+
+                case "Auto complete symbol pair":
+                    item.setChecked(!item.isChecked());
+                    binding.editor.getProps().symbolPairAutoCompletion = item.isChecked();
+
+                    pref.edit().putBoolean("act_acsp", item.isChecked()).apply();
+                    break;
+
+                case "Auto complete":
+                    item.setChecked(!item.isChecked());
+
+                    binding.editor.getComponent(EditorAutoCompletion.class).setEnabled(item.isChecked());
+                    pref.edit().putBoolean("act_ac", item.isChecked()).apply();
+                    break;
+
+                case "Layout Preview":
+                    toLayoutPreview();
+                    break;
+
+                default:
+                    return false;
+            }
+            return true;
+        });
     }
 
     @Override
