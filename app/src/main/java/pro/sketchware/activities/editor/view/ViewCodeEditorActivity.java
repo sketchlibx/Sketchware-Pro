@@ -19,6 +19,8 @@ import com.besome.sketch.beans.ViewBean;
 import com.besome.sketch.lib.base.BaseAppCompatActivity;
 import com.google.android.material.dialog.MaterialAlertDialogBuilder;
 
+import java.util.ArrayList;
+
 import a.a.a.cC;
 import a.a.a.jC;
 import io.github.rosemoe.sora.widget.CodeEditor;
@@ -213,7 +215,6 @@ public class ViewCodeEditorActivity extends BaseAppCompatActivity {
     private void save() {
         try {
             if (isContentModified()) {
-                // Parse content to validate circular dependencies
                 var parser = new ViewBeanParser(editor.getText().toString());
                 parser.setSkipRoot(true);
 
@@ -230,7 +231,6 @@ public class ViewCodeEditorActivity extends BaseAppCompatActivity {
                     }
                 }
 
-                // Update content only after validation
                 content = editor.getText().toString();
                 if (!isEdited) {
                     isEdited = true;
@@ -255,6 +255,23 @@ public class ViewCodeEditorActivity extends BaseAppCompatActivity {
             var parser = new ViewBeanParser(content);
             parser.setSkipRoot(true);
             var parsedLayout = parser.parse();
+            
+            // FIX: Restore visual identity (type, custom flags) of views from old memory data
+            ArrayList<ViewBean> oldLayout = jC.a(sc_id).d(filename);
+            if (oldLayout != null) {
+                for (ViewBean newBean : parsedLayout) {
+                    for (ViewBean oldBean : oldLayout) {
+                        if (newBean.id.equals(oldBean.id)) {
+                            newBean.type = oldBean.type;
+                            newBean.isCustomWidget = oldBean.isCustomWidget;
+                            newBean.customView = oldBean.customView;
+                            newBean.convert = oldBean.convert;
+                            break;
+                        }
+                    }
+                }
+            }
+
             var root = parser.getRootAttributes();
             rootLayoutManager.set(filename, InjectRootLayoutManager.toRoot(root));
             HistoryViewBean bean = new HistoryViewBean();
@@ -265,7 +282,6 @@ public class ViewCodeEditorActivity extends BaseAppCompatActivity {
             }
             cc.a(filename);
             cc.a(filename, bean);
-            // Replace the view beans with the parsed layout
             jC.a(sc_id).c.put(filename, parsedLayout);
             setResult(RESULT_OK);
         } catch (Exception e) {

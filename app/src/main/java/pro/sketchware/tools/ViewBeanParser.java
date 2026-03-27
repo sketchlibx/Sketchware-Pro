@@ -40,6 +40,17 @@ public class ViewBeanParser {
     private boolean skipRoot;
     private Pair<String, Map<String, String>> rootAttributes;
 
+    // FIX: List of standard attributes that Sketchware's ViewBeanFactory natively parses.
+    // We will ignore these to prevent duplicate attribute generation.
+    private static final Set<String> standardHandledAttributes = new HashSet<>(Arrays.asList(
+            "android:id", "android:layout_width", "android:layout_height",
+            "android:layout_margin", "android:layout_marginLeft", "android:layout_marginTop", "android:layout_marginRight", "android:layout_marginBottom",
+            "android:padding", "android:paddingLeft", "android:paddingTop", "android:paddingRight", "android:paddingBottom",
+            "android:text", "android:textSize", "android:textColor", "android:textStyle", "android:lines", "android:singleLine", "android:hint", "android:textColorHint",
+            "android:background", "android:layout_weight", "android:gravity", "android:layout_gravity", "android:orientation",
+            "android:scaleType", "android:checked", "android:progress", "android:max"
+    ));
+
     public ViewBeanParser(String xml) throws XmlPullParserException {
         this(new StringReader(xml));
     }
@@ -58,13 +69,9 @@ public class ViewBeanParser {
     public static String generateUniqueId(Set<String> ids, int type, String className) {
         String prefix = wq.b(type);
         var name = ViewBean.getViewTypeName(type);
-        // Skip these types as they're the only ones with a different view type name: VScrollView
-        // (ScrollView) and HScrollView (HorizontalScrollView).
         //noinspection ConstantValue
         if (type != ViewBean.VIEW_TYPE_LAYOUT_VSCROLLVIEW
                 || type != ViewBean.VIEW_TYPE_LAYOUT_HSCROLLVIEW) {
-            // If the prefix is "linear" and the name is different from the className,
-            // update the prefix to the lowercase version of className.
             if (prefix.equals("linear")
                     && type == ViewBean.VIEW_TYPE_LAYOUT_LINEAR
                     && !name.equals(className)) {
@@ -110,8 +117,6 @@ public class ViewBeanParser {
 
     public static int getViewTypeByClassName(String name) {
         var className = getNameFromTag(name);
-        // Special case for HorizontalScrollView, as ViewBean refers to it as
-        // HScrollView
         if (className.equals("HorizontalScrollView")) {
             className = "HScrollView";
         }
@@ -121,7 +126,6 @@ public class ViewBeanParser {
     }
 
     public static int getViewTypeByTag(String tag, int defaultType) {
-        // Special case for other views that can be considered built-in views by type
         var type = ViewBeanFactory.getConsideredTypeViewByName(getNameFromTag(tag), defaultType);
         if (type == ViewBean.VIEW_TYPE_LAYOUT_LINEAR) {
             var view = InvokeUtil.createView(getContext(), tag);
@@ -183,15 +187,12 @@ public class ViewBeanParser {
                     var className = getNameFromTag(name);
                     int type = getViewTypeByClassName(name);
 
-                    // Get view ID, either from attributes or generate a unique ID
                     String attrId = parser.getAttributeValue(null, "android:id");
                     String id =
                             attrId != null && !ids.contains(parseReferName(attrId, "/"))
                                     ? parseReferName(attrId, "/")
                                     : generateUniqueId(ids, type, className);
 
-                    // Special case for 'include' tag with layout reference, treated as ID in
-                    // ViewBean
                     if (className.equals("include")) {
                         String layout = parser.getAttributeValue(null, "layout");
                         if (layout != null) {
@@ -202,13 +203,11 @@ public class ViewBeanParser {
                     ViewBean bean = new ViewBean(id, type);
                     bean.convert = name;
 
-                    // FIX: Ensure custom views retain their identity and don't degrade to a simple LinearLayout
                     if (type == ViewBean.VIEW_TYPE_LAYOUT_LINEAR && !name.equals("LinearLayout") && name.contains(".")) {
                         bean.isCustomWidget = true;
                     }
 
                     ViewBean parent = viewStack.isEmpty() ? null : viewStack.peek();
-                    // Set parent ID (or root if no parent)
                     int parentType = rootAttributes != null ? getViewTypeByClassName(rootAttributes.first) : ViewBean.VIEW_TYPE_LAYOUT_LINEAR;
                     bean.parent = parent != null ? parent.id : "root";
                     bean.parentType =
@@ -245,7 +244,6 @@ public class ViewBeanParser {
             if (attr != null) {
                 new ViewBeanFactory(bean).applyAttributes(attr);
                 
-                // FIX: Preserve all attributes including custom constraints, padding, and third-party values
                 if (bean.parentAttributes == null) {
                     bean.parentAttributes = new HashMap<>();
                 }
@@ -256,9 +254,14 @@ public class ViewBeanParser {
                     String key = entry.getKey();
                     String value = entry.getValue();
                     
-                    bean.parentAttributes.put(key, value);
+                    // FIX: Prevent duplicates by ignoring basic properties already parsed by ViewBeanFactory
+                    if (standardHandledAttributes.contains(key)) {
+                        continue;
+                    }
                     
-                    if (key.startsWith("app:") || key.startsWith("tools:") || (!key.startsWith("android:") && key.contains(":"))) {
+                    if (key.startsWith("android:layout_")) {
+                        bean.parentAttributes.put(key, value);
+                    } else if (key.startsWith("app:") || key.startsWith("tools:") || (!key.startsWith("android:"))) {
                         String injectProp = key + "=\"" + value + "\"";
                         if (!injectBuilder.toString().contains(injectProp)) {
                             if (injectBuilder.length() > 0 && !injectBuilder.toString().endsWith("\n")) {
@@ -266,6 +269,8 @@ public class ViewBeanParser {
                             }
                             injectBuilder.append(injectProp);
                         }
+                    } else {
+                        bean.parentAttributes.put(key, value);
                     }
                 }
                 bean.inject = injectBuilder.toString();
