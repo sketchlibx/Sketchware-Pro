@@ -39,8 +39,9 @@ public class ViewBeanParser {
     private final XmlPullParser parser;
     private boolean skipRoot;
     private Pair<String, Map<String, String>> rootAttributes;
+    private ArrayList<ViewBean> oldLayout;
 
-    // FIX: List of standard attributes that Sketchware's ViewBeanFactory natively parses.
+    // List of standard attributes that Sketchware's ViewBeanFactory natively parses.
     // We will ignore these to prevent duplicate attribute generation.
     private static final Set<String> standardHandledAttributes = new HashSet<>(Arrays.asList(
             "android:id", "android:layout_width", "android:layout_height",
@@ -48,11 +49,17 @@ public class ViewBeanParser {
             "android:padding", "android:paddingLeft", "android:paddingTop", "android:paddingRight", "android:paddingBottom",
             "android:text", "android:textSize", "android:textColor", "android:textStyle", "android:lines", "android:singleLine", "android:hint", "android:textColorHint",
             "android:background", "android:layout_weight", "android:gravity", "android:layout_gravity", "android:orientation",
-            "android:scaleType", "android:checked", "android:progress", "android:max"
+            "android:scaleType", "android:checked", "android:progress", "android:max", "android:indeterminate",
+            "style", "android:src", "android:dividerHeight", "android:choiceMode"
     ));
 
     public ViewBeanParser(String xml) throws XmlPullParserException {
         this(new StringReader(xml));
+    }
+
+    public ViewBeanParser(String xml, ArrayList<ViewBean> oldLayout) throws XmlPullParserException {
+        this(new StringReader(xml));
+        this.oldLayout = oldLayout;
     }
 
     public ViewBeanParser(File path) throws XmlPullParserException, FileNotFoundException {
@@ -200,12 +207,30 @@ public class ViewBeanParser {
                         }
                     }
 
-                    ViewBean bean = new ViewBean(id, type);
-                    bean.convert = name;
+                    boolean isCustom = false;
+                    String customView = "";
+                    String convert = name;
 
-                    if (type == ViewBean.VIEW_TYPE_LAYOUT_LINEAR && !name.equals("LinearLayout") && name.contains(".")) {
-                        bean.isCustomWidget = true;
+                    if (oldLayout != null) {
+                        for (ViewBean oldBean : oldLayout) {
+                            if (oldBean.id.equals(id)) {
+                                type = oldBean.type;
+                                isCustom = oldBean.isCustomWidget;
+                                customView = oldBean.customView;
+                                convert = oldBean.convert;
+                                break;
+                            }
+                        }
+                    } else {
+                        if (type == ViewBean.VIEW_TYPE_LAYOUT_LINEAR && !name.equals("LinearLayout") && name.contains(".")) {
+                            isCustom = true;
+                        }
                     }
+
+                    ViewBean bean = new ViewBean(id, type);
+                    bean.isCustomWidget = isCustom;
+                    bean.customView = customView;
+                    bean.convert = convert;
 
                     ViewBean parent = viewStack.isEmpty() ? null : viewStack.peek();
                     int parentType = rootAttributes != null ? getViewTypeByClassName(rootAttributes.first) : ViewBean.VIEW_TYPE_LAYOUT_LINEAR;
@@ -248,29 +273,26 @@ public class ViewBeanParser {
                     bean.parentAttributes = new HashMap<>();
                 }
                 
-                StringBuilder injectBuilder = new StringBuilder(bean.inject != null ? bean.inject : "");
+                StringBuilder injectBuilder = new StringBuilder();
                 
                 for (Map.Entry<String, String> entry : attr.entrySet()) {
                     String key = entry.getKey();
                     String value = entry.getValue();
                     
-                    // FIX: Prevent duplicates by ignoring basic properties already parsed by ViewBeanFactory
                     if (standardHandledAttributes.contains(key)) {
                         continue;
                     }
                     
                     if (key.startsWith("android:layout_")) {
                         bean.parentAttributes.put(key, value);
-                    } else if (key.startsWith("app:") || key.startsWith("tools:") || (!key.startsWith("android:"))) {
+                    } else {
                         String injectProp = key + "=\"" + value + "\"";
-                        if (!injectBuilder.toString().contains(injectProp)) {
+                        if (!injectBuilder.toString().contains(key + "=")) {
                             if (injectBuilder.length() > 0 && !injectBuilder.toString().endsWith("\n")) {
                                 injectBuilder.append("\n");
                             }
                             injectBuilder.append(injectProp);
                         }
-                    } else {
-                        bean.parentAttributes.put(key, value);
                     }
                 }
                 bean.inject = injectBuilder.toString();

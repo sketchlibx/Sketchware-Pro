@@ -42,7 +42,7 @@ public class ViewCodeEditorActivity extends BaseAppCompatActivity {
     private SharedPreferences prefs;
 
     private String sc_id;
-
+    private String filename;
     private String content;
 
     private boolean isEdited = false;
@@ -98,13 +98,13 @@ public class ViewCodeEditorActivity extends BaseAppCompatActivity {
             sc_id = savedInstanceState.getString("sc_id");
         }
         rootLayoutManager = new InjectRootLayoutManager(sc_id);
-        String title = getIntent().getStringExtra("title");
-        projectFile = jC.b(sc_id).b(title);
+        filename = getIntent().getStringExtra("title");
+        projectFile = jC.b(sc_id).b(filename);
         projectLibrary = jC.c(sc_id).c();
         getOnBackPressedDispatcher().addCallback(this, onBackPressedCallback);
         setSupportActionBar(binding.toolbar);
         getSupportActionBar().setTitle("XML Editor");
-        getSupportActionBar().setSubtitle(title);
+        getSupportActionBar().setSubtitle(filename);
         binding.toolbar.setNavigationOnClickListener(v -> {
             if (onBackPressedCallback.isEnabled()) {
                 onBackPressedCallback.handleOnBackPressed();
@@ -189,7 +189,7 @@ public class ViewCodeEditorActivity extends BaseAppCompatActivity {
     private void toAppCompat() {
         var intent = new Intent(getApplicationContext(), ManageAppCompatActivity.class);
         intent.putExtra("sc_id", sc_id);
-        intent.putExtra("file_name", getIntent().getStringExtra("title"));
+        intent.putExtra("file_name", filename);
         startActivity(intent);
     }
 
@@ -215,7 +215,9 @@ public class ViewCodeEditorActivity extends BaseAppCompatActivity {
     private void save() {
         try {
             if (isContentModified()) {
-                var parser = new ViewBeanParser(editor.getText().toString());
+                // Pass oldLayout so custom views retain their properties
+                ArrayList<ViewBean> oldLayout = jC.a(sc_id).d(filename);
+                var parser = new ViewBeanParser(editor.getText().toString(), oldLayout);
                 parser.setSkipRoot(true);
 
                 var parsedLayout = parser.parse();
@@ -250,22 +252,21 @@ public class ViewCodeEditorActivity extends BaseAppCompatActivity {
     }
 
     private void exitWithEditedContent() {
-        String filename = getIntent().getStringExtra("title");
         try {
-            var parser = new ViewBeanParser(content);
+            ArrayList<ViewBean> oldLayout = jC.a(sc_id).d(filename);
+            var parser = new ViewBeanParser(content, oldLayout);
             parser.setSkipRoot(true);
             var parsedLayout = parser.parse();
             
-            // FIX: Restore visual identity AND clear cached class info to prevent ClassCastException
-            ArrayList<ViewBean> oldLayout = jC.a(sc_id).d(filename);
+            // Restore visual identity AND clear cached class info to prevent ClassCastException
             if (oldLayout != null) {
                 for (ViewBean newBean : parsedLayout) {
                     for (ViewBean oldBean : oldLayout) {
                         if (newBean.id.equals(oldBean.id)) {
                             newBean.type = oldBean.type;
-                            newBean.clearClassInfo(); // <--- CRITICAL FIX
+                            newBean.clearClassInfo(); 
                             newBean.parentType = oldBean.parentType;
-                            newBean.parentClassInfo = null; // <--- CRITICAL FIX
+                            newBean.parentClassInfo = null; 
                             newBean.isCustomWidget = oldBean.isCustomWidget;
                             newBean.customView = oldBean.customView;
                             newBean.convert = oldBean.convert;
@@ -278,13 +279,15 @@ public class ViewCodeEditorActivity extends BaseAppCompatActivity {
             var root = parser.getRootAttributes();
             rootLayoutManager.set(filename, InjectRootLayoutManager.toRoot(root));
             HistoryViewBean bean = new HistoryViewBean();
-            bean.actionOverride(parsedLayout, jC.a(sc_id).d(filename));
+            bean.actionOverride(parsedLayout, oldLayout);
+            
             var cc = cC.c(sc_id);
             if (!cc.c.containsKey(filename)) {
                 cc.e(filename);
             }
             cc.a(filename);
             cc.a(filename, bean);
+            
             jC.a(sc_id).c.put(filename, parsedLayout);
             setResult(RESULT_OK);
         } catch (Exception e) {
