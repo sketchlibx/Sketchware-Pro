@@ -462,10 +462,6 @@ public class PropertyInputItem extends RelativeLayout implements View.OnClickLis
         imgLeftIcon = findViewById(R.id.img_left_icon);
         propertyItem = findViewById(R.id.property_item);
         propertyMenuItem = findViewById(R.id.property_menu_item);
-//        if (z) {
-//            propertyMenuItem.setSoundEffectsEnabled(true);
-//            propertyMenuItem.setOnClickListener(this);
-//        }
     }
 
     private void showViewIdDialog() {
@@ -816,41 +812,19 @@ public class PropertyInputItem extends RelativeLayout implements View.OnClickLis
         return Arrays.asList(getResources().getStringArray(R.array.property_convert_options));
     }
 
-    /**
-     * Populates additional attributes for specific view types.
-     * <p>
-     * You can add more attributes directly to this list instead of introducing
-     * another variable in the ViewBean class. Use the ViewBean#type field
-     * or getClassInfo methods to identify the type of view and add attributes accordingly.
-     * <p>
-     * Examples:
-     * <p>
-     * // Using ViewBean#type
-     * if (bean.type == ViewBean.VIEW_TYPE_WIDGET_TEXTVIEW) {
-     * attrs.add("android:text");
-     * }
-     * <p>
-     * // Using getClassInfo
-     * if (bean.getClassInfo().a("TextView")) {
-     * attrs.add("android:text");
-     * }
-     * if (bean.getClassInfo().b("LinearLayout")) {
-     * attrs.add("android:orientation");
-     * }
-     * <p>
-     * Notes for getClassInfo:
-     * - a(String): Similar to instanceof for view class names.
-     * - b(String): Represents the actual type of the view, I think?.
-     * Idk if there's a difference between ViewBean#type and this.
-     *
-     * @return A list of additional attributes for the specified view type.
-     */
     private List<String> populateAttributes() {
         List<String> attrs = new ArrayList<>();
+        
+        // Universal Attributes
         attrs.add("android:elevation");
+        attrs.add("android:visibility");
+        attrs.add("android:alpha");
+        attrs.add("android:layout_weight");
+        
         if (bean != null) {
             var simpleName = getSimpleName(bean);
             var classInfo = bean.getClassInfo();
+            
             if (classInfo.b("CardView")) {
                 attrs.add("app:cardBackgroundColor");
                 attrs.add("app:cardElevation");
@@ -860,9 +834,49 @@ public class PropertyInputItem extends RelativeLayout implements View.OnClickLis
                     attrs.add("app:strokeColor");
                     attrs.add("app:strokeWidth");
                 }
+            } else if (classInfo.b("MaterialButton") || classInfo.b("Button")) {
+                attrs.add("app:cornerRadius");
+                attrs.add("app:backgroundTint");
+                attrs.add("app:strokeWidth");
+                attrs.add("app:strokeColor");
+                attrs.add("app:icon");
+                attrs.add("app:iconTint");
+                attrs.add("app:iconGravity");
+            } else if (classInfo.b("ImageView") || classInfo.b("CircleImageView")) {
+                attrs.add("app:tint");
+                if (classInfo.b("CircleImageView")) {
+                    attrs.add("app:civ_border_width");
+                    attrs.add("app:civ_border_color");
+                    attrs.add("app:civ_circle_background_color");
+                }
+            } else if (classInfo.b("Switch") || classInfo.b("CheckBox") || classInfo.b("RadioButton")) {
+                attrs.add("app:buttonTint");
+                if (classInfo.b("Switch")) {
+                    attrs.add("app:thumbTint");
+                    attrs.add("app:trackTint");
+                }
+            } else if (classInfo.b("ProgressBar") || classInfo.b("SeekBar")) {
+                attrs.add("app:indicatorColor");
+                attrs.add("app:trackColor");
+                attrs.add("app:trackThickness");
+                if (classInfo.b("SeekBar")) {
+                    attrs.add("app:thumbColor");
+                    attrs.add("app:haloColor");
+                    attrs.add("app:tickColor");
+                }
+            } else if (classInfo.b("TabLayout")) {
+                attrs.add("app:tabIndicatorColor");
+                attrs.add("app:tabIndicatorHeight");
+                attrs.add("app:tabTextColor");
+                attrs.add("app:tabSelectedTextColor");
+                attrs.add("app:tabMode");
+                attrs.add("app:tabGravity");
+            } else if (classInfo.b("BottomNavigationView")) {
+                attrs.add("app:itemIconTint");
+                attrs.add("app:itemTextColor");
+                attrs.add("app:itemRippleColor");
             }
         }
-        // Add more attributes here based on the view type
         return attrs;
     }
 

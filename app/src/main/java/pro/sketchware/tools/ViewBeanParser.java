@@ -41,18 +41,6 @@ public class ViewBeanParser {
     private Pair<String, Map<String, String>> rootAttributes;
     private ArrayList<ViewBean> oldLayout;
 
-    // List of standard attributes that Sketchware's ViewBeanFactory natively parses.
-    // We will ignore these to prevent duplicate attribute generation.
-    private static final Set<String> standardHandledAttributes = new HashSet<>(Arrays.asList(
-            "android:id", "android:layout_width", "android:layout_height",
-            "android:layout_margin", "android:layout_marginLeft", "android:layout_marginTop", "android:layout_marginRight", "android:layout_marginBottom",
-            "android:padding", "android:paddingLeft", "android:paddingTop", "android:paddingRight", "android:paddingBottom",
-            "android:text", "android:textSize", "android:textColor", "android:textStyle", "android:lines", "android:singleLine", "android:hint", "android:textColorHint",
-            "android:background", "android:layout_weight", "android:gravity", "android:layout_gravity", "android:orientation",
-            "android:scaleType", "android:checked", "android:progress", "android:max", "android:indeterminate",
-            "style", "android:src", "android:dividerHeight", "android:choiceMode"
-    ));
-
     public ViewBeanParser(String xml) throws XmlPullParserException {
         this(new StringReader(xml));
     }
@@ -273,25 +261,58 @@ public class ViewBeanParser {
                     bean.parentAttributes = new HashMap<>();
                 }
                 
-                StringBuilder injectBuilder = new StringBuilder();
+                StringBuilder injectBuilder = new StringBuilder(bean.inject != null ? bean.inject : "");
                 
                 for (Map.Entry<String, String> entry : attr.entrySet()) {
                     String key = entry.getKey();
                     String value = entry.getValue();
                     
-                    if (standardHandledAttributes.contains(key)) {
-                        continue;
-                    }
+                    // Core properties that Sketchware generates natively for ALL views
+                    boolean isNativeToAll = key.equals("android:id") || key.equals("android:layout_width") || key.equals("android:layout_height") ||
+                                            key.startsWith("android:layout_margin") || key.startsWith("android:padding") ||
+                                            key.equals("android:background") || key.equals("android:layout_weight") ||
+                                            key.equals("android:layout_gravity") || key.equals("android:gravity");
+
+                    boolean isNativeToType = false;
+                    int type = bean.type;
                     
-                    if (key.startsWith("android:layout_")) {
-                        bean.parentAttributes.put(key, value);
-                    } else {
-                        String injectProp = key + "=\"" + value + "\"";
-                        if (!injectBuilder.toString().contains(key + "=")) {
-                            if (injectBuilder.length() > 0 && !injectBuilder.toString().endsWith("\n")) {
-                                injectBuilder.append("\n");
+                    // Type-specific natively generated properties
+                    if (type == ViewBean.VIEW_TYPE_LAYOUT_LINEAR && key.equals("android:orientation")) {
+                        isNativeToType = true;
+                    } else if ((type == ViewBean.VIEW_TYPE_WIDGET_TEXTVIEW || type == ViewBean.VIEW_TYPE_WIDGET_BUTTON || type == ViewBean.VIEW_TYPE_WIDGET_EDITTEXT || type == ViewBean.VIEW_TYPE_WIDGET_CHECKBOX || type == ViewBean.VIEW_TYPE_WIDGET_SWITCH) &&
+                               (key.equals("android:text") || key.equals("android:textSize") || key.equals("android:textColor") || key.equals("android:textStyle") || key.equals("android:hint") || key.equals("android:textColorHint") || key.equals("android:lines") || key.equals("android:singleLine"))) {
+                        isNativeToType = true;
+                    } else if (type == ViewBean.VIEW_TYPE_WIDGET_IMAGEVIEW && (key.equals("android:src") || key.equals("android:scaleType"))) {
+                        isNativeToType = true;
+                    } else if (type == ViewBean.VIEW_TYPE_WIDGET_PROGRESSBAR && (key.equals("android:progress") || key.equals("android:max") || key.equals("android:indeterminate") || key.equals("style"))) {
+                        isNativeToType = true;
+                        // Special override for custom Progress/Switch styles so they don't get lost
+                        if (key.equals("style")) {
+                            bean.progressStyle = value; 
+                        }
+                        if (key.equals("android:indeterminate")) {
+                            bean.indeterminate = value;
+                        }
+                    } else if ((type == ViewBean.VIEW_TYPE_WIDGET_CHECKBOX || type == ViewBean.VIEW_TYPE_WIDGET_SWITCH) && key.equals("android:checked")) {
+                        isNativeToType = true;
+                    } else if (type == ViewBean.VIEW_TYPE_WIDGET_LISTVIEW && (key.equals("android:dividerHeight") || key.equals("android:choiceMode"))) {
+                        isNativeToType = true;
+                    } else if (type == ViewBean.VIEW_TYPE_WIDGET_SPINNER && key.equals("android:spinnerMode")) {
+                        isNativeToType = true;
+                    }
+
+                    // If Sketchware won't generate it natively, WE inject it forcefully!
+                    if (!isNativeToAll && !isNativeToType) {
+                        if (key.startsWith("android:layout_")) {
+                            bean.parentAttributes.put(key, value);
+                        } else {
+                            String injectProp = key + "=\"" + value + "\"";
+                            if (!injectBuilder.toString().contains(key + "=")) {
+                                if (injectBuilder.length() > 0 && !injectBuilder.toString().endsWith("\n")) {
+                                    injectBuilder.append("\n");
+                                }
+                                injectBuilder.append(injectProp);
                             }
-                            injectBuilder.append(injectProp);
                         }
                     }
                 }
