@@ -41,43 +41,16 @@ public class Jx {
     private final jq buildConfig;
     private final Ox ox;
     private final Boolean isViewBindingEnabled;
-    /**
-     * Fields with static initializer that added Components need,
-     * e.g. {"private Timer _timer = new Timer();"}
-     */
     private final ArrayList<String> fieldsWithStaticInitializers = new ArrayList<>();
-    /**
-     * Fields of the currently generating class,
-     * e.g. {"private FloatingActionBar _fab;"}
-     */
     private final ArrayList<String> fields = new ArrayList<>();
     private final ArrayList<String> lists = new ArrayList<>();
     private final ArrayList<String> views = new ArrayList<>();
-    /**
-     * Field declarations from components. Can include static initializer, but doesn't have to.
-     */
     private final ArrayList<String> components = new ArrayList<>();
-    /**
-     * Statements to be added to initialize(Bundle),
-     * e.g. {"_drawer.addDrawerListener(_toggle);"}
-     */
     private final ArrayList<String> initializeMethodCode = new ArrayList<>();
     private final ManageLocalLibrary mll;
-    /**
-     * Component initializer lines which get added to <code>_initialize(Bundle)</code>
-     */
     private final ArrayList<String> componentInitializers = new ArrayList<>();
-    /**
-     * Code of More Blocks that have been created
-     */
     private final ArrayList<String> moreBlocks = new ArrayList<>();
-    /**
-     * Code of inner Adapter classes, used for Widgets like ListView or RecyclerView
-     */
     private final ArrayList<String> adapterClasses = new ArrayList<>();
-    /**
-     * Filled with request code constants for FilePicker components
-     */
     private final ArrayList<String> filePickerRequestCodes = new ArrayList<>();
 
     private final ArrayList<HashMap<String, Object>> extraBlocks;
@@ -111,6 +84,12 @@ public class Jx {
         return Lx.j(new Fx(projectFileBean.getActivityName(), buildConfig, blocks, isViewBindingEnabled).a(), false);
     }
 
+    // 🚀 NEW: Fetch custom blocks for onRequestPermissionsResult 
+    public String requestPermissionsResult() {
+        ArrayList<BlockBean> blocks = jC.a(projectDataManager.a).a(projectFileBean.getJavaName(), "onRequestPermissionsResult_onRequestPermissionsResult");
+        return Lx.j(new Fx(projectFileBean.getActivityName(), buildConfig, blocks, isViewBindingEnabled).a(), false);
+    }
+
     private void extraVariables() {
         for (Map.Entry<String, ArrayList<BlockBean>> blocks : jC.a(projectDataManager.a).b(projectFileBean.getJavaName()).entrySet()) {
             for (BlockBean block : blocks.getValue()) {
@@ -141,10 +120,6 @@ public class Jx {
         imports = newImports;
     }
 
-    /**
-     * @return Import to be added to the currently generating class
-     * (includes import of default launcher activity)
-     */
     private String getLauncherActivity(String packageName) {
         String theImport = "";
 
@@ -166,9 +141,6 @@ public class Jx {
         return "if (!" + arrayList.get(0) + ".handleActivityResult(_requestCode, _resultCode, _data))";
     }
 
-    /**
-     * @return Generated Java code of the current View (not Widget)
-     */
     public String generateCode(boolean isAndroidStudioExport, String sc_id) {
         boolean isDialogFragment = projectFileBean.fileName.contains("_dialog_fragment");
         boolean isBottomDialogFragment = projectFileBean.fileName.contains("_bottomdialog_fragment");
@@ -411,7 +383,6 @@ public class Jx {
         }
 
         if (!isFragment) {
-            // Adds initializeLogic() call too, don't worry
             sb.append(permissionManager.writePermission(buildConfig.g, buildConfig.a(projectFileBean.getActivityName()).c));
         } else {
             sb.append("initializeLogic();").append(EOL);
@@ -423,14 +394,25 @@ public class Jx {
         }
         sb.append("}").append(EOL);
 
-        if (permissionManager.hasPermission && !isFragment) {
+        // 🚀 MODIFIED: Generate onRequestPermissionsResult ONLY ONCE with User Blocks + Default Logic
+        String userPermissionLogic = requestPermissionsResult();
+        if ((permissionManager.hasPermission && !isFragment) || !userPermissionLogic.isEmpty()) {
             sb.append(EOL);
             sb.append("@Override").append(EOL);
             sb.append("public void onRequestPermissionsResult(int requestCode, String[] permissions, int[] grantResults) {").append(EOL);
             sb.append("super.onRequestPermissionsResult(requestCode, permissions, grantResults);").append(EOL);
-            sb.append("if (requestCode == 1000) {").append(EOL);
-            sb.append("initializeLogic();").append(EOL);
-            sb.append("}").append(EOL);
+            
+            // Add default Sketchware logic if it requires permissions
+            if (permissionManager.hasPermission && !isFragment) {
+                sb.append("if (requestCode == 1000) {").append(EOL);
+                sb.append("initializeLogic();").append(EOL);
+                sb.append("}").append(EOL);
+            }
+            
+            // Append the user's custom visual blocks logic
+            if (!userPermissionLogic.isEmpty()) {
+                sb.append(userPermissionLogic).append(EOL);
+            }
             sb.append("}").append(EOL);
         }
         sb.append(EOL);
@@ -582,7 +564,6 @@ public class Jx {
         sb.append("}").append(EOL);
         String code = sb.toString();
 
-        // overwriting explicitly written getActivity() or other contexts.
         if (isFragment) {
             code = code.replaceAll("(?<!\\.)getApplicationContext\\(\\)", "getContext().getApplicationContext()")
                     .replaceAll("(?<!\\.)getBaseContext\\(\\)", "getActivity().getBaseContext()")
@@ -629,9 +610,6 @@ public class Jx {
         return Lx.a(viewType, "_drawer_" + viewBean.id, Lx.AccessModifier.PRIVATE, isViewBindingEnabled);
     }
 
-    /**
-     * @return Definition line for a Variable
-     */
     private String getVariableDeclarationAndAddImports(int variableType, String name) {
         String variableTypeName = mq.c(variableType);
         addImports(mq.getImportsByTypeName(projectDataManager.a, variableTypeName, null));
@@ -717,9 +695,6 @@ public class Jx {
         }
     }
 
-    /**
-     * @see Lx#getComponentInitializerCode(String, String, String...)
-     */
     private String getComponentBeanInitializer(ComponentBean componentBean) {
         return Lx.getComponentInitializerCode(mq.a(componentBean.type), componentBean.componentId, componentBean.param1, componentBean.param2, componentBean.param3);
     }
@@ -896,7 +871,6 @@ public class Jx {
             if (index < (pairsSize - 1)) {
                 moreBlocks.add(code);
             } else {
-                // Removes unnecessary newline at end of More Block code
                 moreBlocks.add(code.substring(0, code.length() - 2));
             }
         }
@@ -907,9 +881,6 @@ public class Jx {
         addImports(eventManager.getImports());
     }
 
-    /**
-     * Adds imports for blocks used in the currently generated Activity.
-     */
     private void addImportsForBlocks() {
         for (Map.Entry<String, ArrayList<BlockBean>> entry : projectDataManager.b(projectFileBean.getJavaName()).entrySet()) {
             for (BlockBean blockBean : entry.getValue()) {
@@ -979,9 +950,6 @@ public class Jx {
         return null;
     }
 
-    /**
-     * Handles the Activity's Drawer Views and Components
-     */
     private void addDrawerComponentInitializer() {
         ArrayList<ViewBean> viewBeans = projectDataManager.d(projectFileBean.getXmlName());
         for (ViewBean viewBean : viewBeans) {
@@ -1011,9 +979,6 @@ public class Jx {
         }
     }
 
-    /**
-     * Handles the file's request code constants.
-     */
     private void addRequestCodeConstants() {
         int startValue = 100;
         for (ComponentBean next : projectDataManager.e(projectFileBean.getJavaName())) {
@@ -1139,14 +1104,11 @@ public class Jx {
                  ViewBeans.VIEW_TYPE_WIDGET_YOUTUBEPLAYERVIEW,
                  ViewBeans.VIEW_TYPE_LAYOUT_TABLAYOUT,
                  ViewBeans.VIEW_TYPE_LAYOUT_VIEWPAGER ->
-                    true; // it's necessary for the adapters, listeners...
+                    true; 
             default -> false;
         };
     }
 
-    /**
-     * Adds Local libraries' imports
-     */
     private void addLocalLibraryImports() {
         for (String value : mll.getImportLocalLibrary()) {
             addImport(value);

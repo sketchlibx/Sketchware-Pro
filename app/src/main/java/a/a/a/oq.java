@@ -13,8 +13,22 @@ public class oq {
 
     /**
      * The known Event names that can be added to all Activities.
+     * We dynamically append onRequestPermissionsResult to the base list.
      */
-    public static final String[] ACTIVITY_EVENTS = EventsHandler.getActivityEvents();
+    public static final String[] ACTIVITY_EVENTS = getUpdatedActivityEvents();
+
+    private static String[] getUpdatedActivityEvents() {
+        String[] baseEvents = EventsHandler.getActivityEvents();
+        ArrayList<String> events = new ArrayList<>();
+        for (String event : baseEvents) {
+            events.add(event);
+        }
+        // ADDED: Make onRequestPermissionsResult an explicitly editable activity event
+        if (!events.contains("onRequestPermissionsResult")) {
+            events.add("onRequestPermissionsResult");
+        }
+        return events.toArray(new String[0]);
+    }
 
     /**
      * @return The resource ID for an Event's icon
@@ -23,7 +37,7 @@ public class oq {
     public static int getEventIconResource(String eventName) {
         return switch (eventName) {
             case "initializeLogic", "onBackPressed", "onPostCreate", "onStart", "onStop",
-                 "onDestroy", "onResume", "onPause", "moreBlock" ->
+                 "onDestroy", "onResume", "onPause", "moreBlock", "onRequestPermissionsResult" ->
                     R.drawable.bg_event_type_activity;
             case "onBannerAdClicked", "onClick" -> R.drawable.ic_mtrl_touch;
             case "onCheckedChange" -> R.drawable.ic_mtrl_checkbox;
@@ -93,6 +107,7 @@ public class oq {
             case "onDestroy" -> Helper.getResString(R.string.event_ondestroy);
             case "onResume" -> Helper.getResString(R.string.event_onresume);
             case "onPause" -> Helper.getResString(R.string.event_onpause);
+            case "onRequestPermissionsResult" -> "onRequestPermissionsResult"; // Added Explicit Title
             case "onPageStarted" -> Helper.getResString(R.string.event_onpagestarted);
             case "onPageFinished" -> Helper.getResString(R.string.event_onpagefinished);
             case "moreBlock" -> Helper.getResString(R.string.event_definefunc);

@@ -2,8 +2,7 @@ package mod.hey.studios.project.proguard;
 
 import android.content.Intent;
 import android.os.Bundle;
-import android.view.View;
-import android.widget.CompoundButton;
+import android.widget.Toast;
 
 import com.besome.sketch.lib.base.BaseAppCompatActivity;
 import com.google.android.material.dialog.MaterialAlertDialogBuilder;
@@ -15,29 +14,72 @@ import mod.agus.jcoderz.editor.manage.library.locallibrary.ManageLocalLibrary;
 import mod.hey.studios.code.SrcCodeEditor;
 import pro.sketchware.R;
 import pro.sketchware.databinding.ManageProguardBinding;
+import pro.sketchware.utility.SketchwareUtil;
 
-public class ManageProguardActivity extends BaseAppCompatActivity
-        implements View.OnClickListener, CompoundButton.OnCheckedChangeListener {
+public class ManageProguardActivity extends BaseAppCompatActivity {
 
     private ProguardHandler pg;
-
     private ManageProguardBinding binding;
+    private String sc_id;
 
     @Override
-    public void onClick(View v) {
-        int id = v.getId();
-        if (id == binding.lnPgRules.getId()) {
+    public void onCreate(Bundle savedInstanceState) {
+        super.onCreate(savedInstanceState);
+        binding = ManageProguardBinding.inflate(getLayoutInflater());
+        setContentView(binding.getRoot());
+
+        sc_id = getIntent().getStringExtra("sc_id");
+        if (sc_id == null || sc_id.isEmpty()) {
+            SketchwareUtil.toast("Project ID not found", Toast.LENGTH_SHORT);
+            finish();
+            return;
+        }
+
+        pg = new ProguardHandler(sc_id);
+
+        _initToolbar();
+        initializeSwitches();
+        initializeClickListeners();
+    }
+
+    private void _initToolbar() {
+        setSupportActionBar(binding.toolbar);
+        if (getSupportActionBar() != null) {
+            getSupportActionBar().setDisplayShowTitleEnabled(true);
+            getSupportActionBar().setDisplayHomeAsUpEnabled(true);
+            getSupportActionBar().setTitle("Code Shrinking Manager");
+        }
+        binding.toolbar.setNavigationOnClickListener(view -> onBackPressed());
+    }
+
+    private void initializeSwitches() {
+        binding.swPgEnabled.setChecked(pg.isShrinkingEnabled());
+        binding.swPgDebug.setChecked(pg.isDebugFilesEnabled());
+        binding.r8Enabled.setChecked(pg.isR8Enabled());
+
+        binding.swPgEnabled.setOnCheckedChangeListener((buttonView, isChecked) -> pg.setProguardEnabled(isChecked));
+        binding.swPgDebug.setOnCheckedChangeListener((buttonView, isChecked) -> pg.setDebugEnabled(isChecked));
+        binding.r8Enabled.setOnCheckedChangeListener((buttonView, isChecked) -> pg.setR8Enabled(isChecked));
+    }
+
+    private void initializeClickListeners() {
+        binding.lnPgRules.setOnClickListener(v -> {
             Intent intent = new Intent(this, SrcCodeEditor.class);
             intent.putExtra("title", "proguard-rules.pro");
             intent.putExtra("content", pg.getCustomProguardRules());
             startActivity(intent);
-        } else if (id == binding.lnPgFm.getId()) {
-            fmDialog();
-        }
+        });
+
+        binding.lnPgFm.setOnClickListener(v -> showFullModeDialog());
     }
 
-    private void fmDialog() {
-        ManageLocalLibrary mll = new ManageLocalLibrary(getIntent().getStringExtra("sc_id"));
+    private void showFullModeDialog() {
+        ManageLocalLibrary mll = new ManageLocalLibrary(sc_id);
+
+        if (mll.list.isEmpty()) {
+            SketchwareUtil.toast("No local libraries found in this project.", Toast.LENGTH_SHORT);
+            return;
+        }
 
         String[] libraries = new String[mll.list.size()];
         boolean[] enabledLibraries = new boolean[mll.list.size()];
@@ -55,72 +97,24 @@ public class ManageProguardActivity extends BaseAppCompatActivity
             }
         }
 
-        MaterialAlertDialogBuilder bld = new MaterialAlertDialogBuilder(this);
-        bld.setTitle("Select Local libraries");
-        bld.setMultiChoiceItems(
-                libraries,
-                enabledLibraries,
-                (dialog, which, isChecked) -> enabledLibraries[which] = isChecked);
-        bld.setPositiveButton(
-                R.string.common_word_save,
-                (dialog, which) -> {
-                    ArrayList<String> finalList = new ArrayList<>();
-
-                    for (int i = 0; i < libraries.length; i++) {
-                        if (enabledLibraries[i]) {
-                            finalList.add(libraries[i]);
-                        }
-                    }
-
-                    pg.setProguardFMLibs(finalList);
-                });
-        bld.setNegativeButton(R.string.common_word_cancel, null);
-        bld.create().show();
-    }
-
-    @Override
-    public void onCheckedChanged(CompoundButton buttonView, boolean isChecked) {
-        int id = buttonView.getId();
-        if (id == binding.swPgEnabled.getId()) {
-            pg.setProguardEnabled(isChecked);
-        } else if (id == binding.r8Enabled.getId()) {
-            pg.setR8Enabled(isChecked);
-        } else if (id == binding.swPgDebug.getId()) {
-            pg.setDebugEnabled(isChecked);
-        }
-    }
-
-    @Override
-    public void onCreate(Bundle savedInstanceState) {
-        super.onCreate(savedInstanceState);
-        binding = ManageProguardBinding.inflate(getLayoutInflater());
-        setContentView(binding.getRoot());
-
-        initialize();
-        initializeLogic();
-    }
-
-    private void initialize() {
-        binding.swPgEnabled.setOnCheckedChangeListener(this);
-        binding.lnPgRules.setOnClickListener(this);
-        binding.r8Enabled.setOnCheckedChangeListener(this);
-        binding.swPgDebug.setOnCheckedChangeListener(this);
-        binding.lnPgFm.setOnClickListener(this);
-    }
-
-    private void initializeLogic() {
-        _initToolbar();
-        pg = new ProguardHandler(getIntent().getStringExtra("sc_id"));
-        binding.swPgEnabled.setChecked(pg.isShrinkingEnabled());
-        binding.swPgDebug.setChecked(pg.isDebugFilesEnabled());
-        binding.r8Enabled.setChecked(pg.isR8Enabled());
-    }
-
-    private void _initToolbar() {
-        setSupportActionBar(binding.toolbar);
-        getSupportActionBar().setDisplayShowTitleEnabled(true);
-        getSupportActionBar().setDisplayHomeAsUpEnabled(true);
-        getSupportActionBar().setTitle("Code Shrinking Manager");
-        binding.toolbar.setNavigationOnClickListener(view -> onBackPressed());
+        new MaterialAlertDialogBuilder(this)
+                .setTitle("Select Local Libraries")
+                .setMultiChoiceItems(
+                        libraries,
+                        enabledLibraries,
+                        (dialog, which, isChecked) -> enabledLibraries[which] = isChecked)
+                .setPositiveButton(
+                        R.string.common_word_save,
+                        (dialog, which) -> {
+                            ArrayList<String> finalList = new ArrayList<>();
+                            for (int i = 0; i < libraries.length; i++) {
+                                if (enabledLibraries[i] && !libraries[i].equals("(broken library configuration)")) {
+                                    finalList.add(libraries[i]);
+                                }
+                            }
+                            pg.setProguardFMLibs(finalList);
+                        })
+                .setNegativeButton(R.string.common_word_cancel, null)
+                .show();
     }
 }

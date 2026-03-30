@@ -33,8 +33,6 @@ public class EventsHandler {
      * Used in {@link oq#getAllActivityEvents()}
      *
      * @return Array of Activity Events.
-     * @apiNote Custom Activity Events can be added by writing to the file
-     * /Internal storage/.sketchware/data/system/events.json and specifying an empty string for "var"
      */
     public static String[] getActivityEvents() {
         ArrayList<String> array = new ArrayList<>();
@@ -42,6 +40,8 @@ public class EventsHandler {
         array.add("Import");
         array.add("initializeLogic");
         array.add("onActivityResult");
+        // 🚀 ADDED: onRequestPermissionsResult to the core activity events list
+        array.add("onRequestPermissionsResult");
         array.add("onBackPressed");
         array.add("onPostCreate");
         array.add("onStart");
@@ -83,10 +83,6 @@ public class EventsHandler {
         return array.toArray(new String[0]);
     }
 
-    /**
-     * Used in {@link mod.agus.jcoderz.editor.event.ManageEvent#addExtraEvents(Gx, ArrayList)} to retrieve extra
-     * Events for Components, such as custom ones.
-     */
     public static void addEvents(Gx gx, ArrayList<String> list) {
         if (gx.a("Clickable")) {
             list.add(" onLongClick");
@@ -125,10 +121,6 @@ public class EventsHandler {
         }
     }
 
-    /**
-     * Used in {@link mod.agus.jcoderz.editor.event.ManageEvent#addExtraListeners(Gx, ArrayList)} to get extra
-     * listeners for Components and Widgets, such as custom ones.
-     */
     public static void addListeners(Gx gx, ArrayList<String> list) {
         if (gx.a("Clickable")) {
             list.add(" onLongClickListener");
@@ -166,10 +158,6 @@ public class EventsHandler {
         }
     }
 
-    /**
-     * Used in {@link mod.agus.jcoderz.editor.event.ManageEvent#addEventsForListener(String, ArrayList)} to get extra
-     * listeners' Events, such as custom ones.
-     */
     public static void addEventsToListener(String name, ArrayList<String> list) {
         switch (name) {
             case " onLongClickListener":
@@ -216,7 +204,7 @@ public class EventsHandler {
 
     public static int getIcon(String name) {
         return switch (name) {
-            case "Import", "onActivityResult", "initializeLogic", "onBackPressed", "onPostCreate",
+            case "Import", "onActivityResult", "onRequestPermissionsResult", "initializeLogic", "onBackPressed", "onPostCreate",
                  "onStart", "onResume", "onPause", "onStop", "onDestroy",
                  "onTabLayoutNewTabAdded" -> R.drawable.ic_mtrl_code;
             case " onLongClick" -> R.drawable.ic_mtrl_touch_long;
@@ -263,6 +251,7 @@ public class EventsHandler {
         return switch (name) {
             case "Import" -> "add custom imports";
             case "onActivityResult" -> "onActivityResult";
+            case "onRequestPermissionsResult" -> "onRequestPermissionsResult"; // 🚀 Added description
             case "initializeLogic" -> "initializeLogic";
             case "onSwipeRefreshLayout" -> "On SwipeRefreshLayout swipe";
             case " onLongClick" -> "onLongClick";
@@ -307,26 +296,22 @@ public class EventsHandler {
     public static String getEventCode(String targetId, String name, String param) {
         return switch (name) {
             case "Import" ->
-                // Changed from: "...vF\n${param}\n//3b..."
                     "//Ul5kmZqmO867OV0QTGOpjwX7MXmgzxzQBSZTf0Y16PnDXkhLsZfvF\r\n" +
                             param + "\r\n" +
                             "//3b5IqsVG57gNqLi7FBO2MeOW6iI7tOustUGwcA7HKXm0o7lovZ";
-            case "onActivityResult", "initializeLogic" -> "";
+            case "onActivityResult", "initializeLogic", "onRequestPermissionsResult" -> ""; // 🚀 Added here to let Jx handle the signature mapping
             case "onSwipeRefreshLayout" ->
-                // Changed from: "@Override \npublic void..."
                     "@Override\r\n" +
                             "public void onRefresh() {\n" +
                             param + "\r\n" +
                             "}";
             case " onLongClick" ->
-                // Changed from: "@Override\r\n public boolean..."
                     "@Override\r\n" +
                             "public boolean onLongClick(View _view) {\r\n" +
                             param + "\r\n" +
                             "return true;\r\n" +
                             "}";
             case "onTabLayoutNewTabAdded" ->
-                // Changed from: "public  CharSequence  onTabLayoutNewTabAdded( int   _position ){..."
                     "public CharSequence onTabLayoutNewTabAdded(int _position) {\r\n" +
                             (param.isEmpty() ? "return \"\";\r\n" :
                                     param + "\r\n"
@@ -383,6 +368,8 @@ public class EventsHandler {
             case "Import", "initializeLogic", "onSwipeRefreshLayout", " onLongClick",
                  "onPreExecute" -> "";
             case "onActivityResult" -> "%d.requestCode %d.resultCode %m.intent";
+            // 🚀 ADDED: Block signature mapping for the variables passed in onRequestPermissionsResult
+            case "onRequestPermissionsResult" -> "%d.requestCode %m.permissions.data %m.grantResults.data";
             case "onTabLayoutNewTabAdded", "onProgressUpdate" -> "%d";
             case "doInBackground", "onPostExecute" -> "%s";
             default -> {
@@ -419,6 +406,9 @@ public class EventsHandler {
             case "Import" -> "create new import";
             case "onActivityResult" ->
                     "OnActivityResult %d.requestCode %d.resultCode %m.intent.data";
+            // 🚀 ADDED: Human readable spec description for Blocks UI
+            case "onRequestPermissionsResult" ->
+                    "onRequestPermissionsResult %d.requestCode %m.permissions %m.grantResults";
             case "initializeLogic" -> "initializeLogic";
             case "onSwipeRefreshLayout" -> "when " + name + " refresh";
             case " onLongClick" -> "when " + name + " long clicked";
