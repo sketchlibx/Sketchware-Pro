@@ -2,8 +2,15 @@
     xmlns:app="http://schemas.android.com/apk/res-auto">
 
     <item
-        android:id="@+id/design_option_menu_search"
+        android:id="@+id/design_option_menu_global_search"
         android:icon="@drawable/ic_mtrl_search"
+        android:orderInCategory="90"
+        android:title="Global Search"
+        app:showAsAction="always" />
+
+    <item
+        android:id="@+id/design_option_menu_search"
+        android:icon="@drawable/ic_mtrl_find_replace"
         android:orderInCategory="100"
         android:title="@string/logic_search_events"
         android:visible="false"
@@ -19,7 +26,7 @@
     <item
         android:id="@+id/design_actionbar_titleopen_drawer"
         android:icon="@drawable/selector_ic_more_tinted_24"
-        android:orderInCategory="110"
+        android:orderInCategory="120"
         android:title="Design Drawer"
         app:showAsAction="always" />
 

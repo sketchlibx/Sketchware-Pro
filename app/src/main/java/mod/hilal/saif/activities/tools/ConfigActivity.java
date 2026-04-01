@@ -55,6 +55,8 @@ public class ConfigActivity extends BaseAppCompatActivity {
     public static final String SETTING_CRITICAL_UPDATE_REMINDER = "critical-update-reminder";
     public static final String SETTING_BLOCKMANAGER_DIRECTORY_PALETTE_FILE_PATH = "palletteDir";
     public static final String SETTING_BLOCKMANAGER_DIRECTORY_BLOCK_FILE_PATH = "blockDir";
+    
+    public static final String SETTING_TREE_VIEW = "enable-tree-view";
 
     public static String getBackupPath() {
         return DataStore.getInstance().getString(SETTING_BACKUP_DIRECTORY, "/.sketchware/backups/");
@@ -110,10 +112,8 @@ public class ConfigActivity extends BaseAppCompatActivity {
                 }
 
                 toLog = new NullPointerException("settings == null");
-                // fall-through to shared error handler
             } catch (JsonParseException e) {
                 toLog = e;
-                // fall-through to shared error handler
             }
 
             SketchwareUtil.toastError("Couldn't parse App Settings! Restoring defaults.");
@@ -137,7 +137,8 @@ public class ConfigActivity extends BaseAppCompatActivity {
                 SETTING_USE_NEW_VERSION_CONTROL,
                 SETTING_USE_ASD_HIGHLIGHTER,
                 SETTING_BLOCKMANAGER_DIRECTORY_PALETTE_FILE_PATH,
-                SETTING_BLOCKMANAGER_DIRECTORY_BLOCK_FILE_PATH);
+                SETTING_BLOCKMANAGER_DIRECTORY_BLOCK_FILE_PATH,
+                SETTING_TREE_VIEW);
 
         for (String key : keys) {
             settings.put(key, getDefaultValue(key));
@@ -150,7 +151,7 @@ public class ConfigActivity extends BaseAppCompatActivity {
             case SETTING_ALWAYS_SHOW_BLOCKS,
                  SETTING_ROOT_AUTO_INSTALL_PROJECTS, SETTING_SHOW_BUILT_IN_BLOCKS,
                  SETTING_SHOW_EVERY_SINGLE_BLOCK, SETTING_USE_NEW_VERSION_CONTROL,
-                 SETTING_USE_ASD_HIGHLIGHTER -> false;
+                 SETTING_USE_ASD_HIGHLIGHTER, SETTING_TREE_VIEW -> false;
             case SETTING_BACKUP_DIRECTORY -> "/.sketchware/backups/";
             case SETTING_ROOT_AUTO_OPEN_AFTER_INSTALLING -> true;
             case SETTING_BLOCKMANAGER_DIRECTORY_PALETTE_FILE_PATH ->
@@ -214,6 +215,15 @@ public class ConfigActivity extends BaseAppCompatActivity {
             dataStore = DataStore.getInstance();
             getPreferenceManager().setPreferenceDataStore(dataStore);
             setPreferencesFromResource(R.xml.preferences_config_activity, rootKey);
+
+            SwitchPreferenceCompat treeViewPref = new SwitchPreferenceCompat(requireContext());
+            treeViewPref.setKey(SETTING_TREE_VIEW);
+            treeViewPref.setTitle("Enable Tree View File Manager");
+            treeViewPref.setSummary("Show Java/Kotlin files in a hierarchical tree view instead of flat folders. Essential for large projects!");
+            treeViewPref.setDefaultValue(false);
+            treeViewPref.setIcon(R.drawable.ic_mtrl_folder); // standard folder icon
+            getPreferenceScreen().addPreference(treeViewPref);
+
             Preference backupDir = findPreference("backup-dir");
             assert backupDir != null;
             backupDir.setOnPreferenceClickListener(preference -> {
@@ -311,12 +321,6 @@ public class ConfigActivity extends BaseAppCompatActivity {
         }
     }
 
-    /**
-     * An in-memory caching store for settings listed in {@link ConfigActivity}.
-     * Persists to {@link #SETTINGS_FILE}.
-     *
-     * @see #persist()
-     */
     public static class DataStore extends PreferenceDataStore {
         private static DataStore INSTANCE;
         private final Map<String, Object> settings;
@@ -333,10 +337,6 @@ public class ConfigActivity extends BaseAppCompatActivity {
             return settings;
         }
 
-        /**
-         * Blocking method that writes its data to {@link #SETTINGS_FILE}. Should be called manually,
-         * since there's no automatic persist. Meaning, every write, unless they are in batches.
-         */
         public void persist() {
             FileUtil.writeFile(SETTINGS_FILE.getAbsolutePath(), getGson().toJson(settings));
         }

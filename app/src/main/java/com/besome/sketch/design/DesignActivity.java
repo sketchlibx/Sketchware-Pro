@@ -108,6 +108,8 @@ import mod.hey.studios.project.stringfog.ManageStringFogFragment;
 import mod.hey.studios.project.stringfog.StringfogHandler;
 import mod.hey.studios.util.Helper;
 import mod.hey.studios.util.SystemLogPrinter;
+import mod.sketchlibx.search.GlobalSearchDialog;
+import com.besome.sketch.beans.ProjectFileBean;
 import mod.hilal.saif.activities.android_manifest.AndroidManifestInjection;
 import mod.hilal.saif.activities.tools.ConfigActivity;
 import mod.jbk.build.BuildProgressReceiver;
@@ -521,6 +523,11 @@ public class DesignActivity extends BaseAppCompatActivity implements View.OnClic
             toViewCodeEditor();
             return true;
         });
+        bottomMenu.add(Menu.NONE, 8, Menu.NONE, "Version History").setOnMenuItemClickListener(item -> {
+            mod.sketchlibx.project.history.TimeTravelBottomSheet sheet = new mod.sketchlibx.project.history.TimeTravelBottomSheet(sc_id, this);
+            sheet.show(getSupportFragmentManager(), "TimeTravel");
+            return true;
+        });
         bottomPopupMenu.setOnDismissListener(menu -> btnOptions.setChecked(false));
 
         xmlLayoutOrientation = findViewById(R.id.img_orientation);
@@ -637,7 +644,7 @@ public class DesignActivity extends BaseAppCompatActivity implements View.OnClic
         return true;
     }
 
-    @Override
+        @Override
     public boolean onOptionsItemSelected(@NonNull MenuItem item) {
         int itemId = item.getItemId();
         if (itemId == R.id.design_actionbar_titleopen_drawer) {
@@ -651,10 +658,15 @@ public class DesignActivity extends BaseAppCompatActivity implements View.OnClic
                 eventTabAdapter.toggleSearchBar();
             }
             return true;
+        } else if (itemId == R.id.design_option_menu_global_search) {
+            GlobalSearchDialog dialog = new GlobalSearchDialog(sc_id, this);
+            dialog.show(getSupportFragmentManager(), "GlobalSearch");
+            return true;
         }
 
         return super.onOptionsItemSelected(item);
     }
+
 
     @Override
     public void onPostCreate(Bundle savedInstanceState) {
@@ -1107,6 +1119,8 @@ public class DesignActivity extends BaseAppCompatActivity implements View.OnClic
         private void doInBackground() {
             DesignActivity activity = getActivity();
             if (activity == null) return;
+            
+            mod.sketchlibx.project.history.TimeMachineManager.takeSnapshot(DesignActivity.sc_id);
 
             try {
                 var q = activity.q;
@@ -1460,6 +1474,9 @@ public class DesignActivity extends BaseAppCompatActivity implements View.OnClic
                 jC.a(sc_id).j();
                 jC.d(sc_id).x();
                 jC.c(sc_id).l();
+                
+                mod.sketchlibx.project.history.TimeMachineManager.takeSnapshot(sc_id);
+                
                 activity.runOnUiThread(() -> {
                     bB.a(activity.getApplicationContext(), Helper.getResString(R.string.common_message_complete_save), bB.TOAST_NORMAL).show();
                     activity.saveVersionCodeInformationToProject();
@@ -1494,6 +1511,9 @@ public class DesignActivity extends BaseAppCompatActivity implements View.OnClic
                 jC.d(sc_id).x();
                 jC.c(sc_id).l();
                 jC.d(sc_id).h();
+                
+                mod.sketchlibx.project.history.TimeMachineManager.takeSnapshot(sc_id);
+                
                 activity.runOnUiThread(() -> {
                     bB.a(activity.getApplicationContext(), Helper.getResString(R.string.common_message_complete_save), bB.TOAST_NORMAL).show();
                     activity.saveVersionCodeInformationToProject();
@@ -1572,4 +1592,36 @@ public class DesignActivity extends BaseAppCompatActivity implements View.OnClic
             }
         }
     }
+    
+    public void jumpToFileAndTab(String searchFileName, int tabIndex) {
+        ProjectFileBean fileBean = jC.b(sc_id).b(searchFileName);
+        if (fileBean == null) {
+            fileBean = jC.b(sc_id).a(searchFileName);
+        }
+        
+        if (fileBean != null) {
+            this.projectFile = fileBean;
+            refreshFileSelector();
+            viewPager.setCurrentItem(tabIndex);
+            refresh();
+            SketchwareUtil.toast("Jumped to " + searchFileName);
+        } else {
+            SketchwareUtil.toastError("Could not find file: " + searchFileName);
+        }
+    }
+    
+
+    public void reloadProjectAfterTimeTravel() {
+        k(); // Show loading dialog
+        new Thread(() -> {
+            loadProject(false); // Reload data from internal storage
+            runOnUiThread(() -> {
+                updateBottomMenu();
+                refresh(); // Refresh the ViewPager and UI
+                h(); // Hide loading dialog
+                SketchwareUtil.toast("Time travel successful! Project restored.");
+            });
+        }).start();
+    }
+    
 }

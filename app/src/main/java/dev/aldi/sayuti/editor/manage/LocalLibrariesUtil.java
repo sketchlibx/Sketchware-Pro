@@ -15,23 +15,38 @@ import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 
 import mod.hey.studios.util.Helper;
 
 public class LocalLibrariesUtil {
     private static final String localLibsPath = getExternalStorageDir().concat("/.sketchware/libs/local_libs/");
+    
+    private static List<LocalLibrary> cachedLibraries = null;
+
+    /**
+     * Clears the memory cache so the next load forces a disk read.
+     */
+    public static void clearCache() {
+        cachedLibraries = null;
+    }
 
     public static List<LocalLibrary> getAllLocalLibraries() {
+        if (cachedLibraries != null) {
+            return new ArrayList<>(cachedLibraries);
+        }
+
         ArrayList<File> localLibraryFiles = new ArrayList<>();
         listDirAsFile(localLibsPath, localLibraryFiles);
         localLibraryFiles.sort(new LocalLibrariesComparator());
 
-        List<LocalLibrary> localLibraries = new LinkedList<>();
-        for (File libraryFile : localLibraryFiles) {
-            if (libraryFile.isDirectory()) {
-                localLibraries.add(LocalLibrary.fromFile(libraryFile));
-            }
-        }
+        List<LocalLibrary> localLibraries = localLibraryFiles.parallelStream()
+                .filter(File::isDirectory)
+                .map(LocalLibrary::fromFile)
+                .collect(Collectors.toList());
+
+        // Save to cache for next quick access
+        cachedLibraries = new ArrayList<>(localLibraries);
 
         return localLibraries;
     }
@@ -47,6 +62,8 @@ public class LocalLibrariesUtil {
     }
 
     public static void deleteSelectedLocalLibraries(String scId, List<LocalLibrary> localLibraries, ArrayList<HashMap<String, Object>> projectUsedLibs) {
+        clearCache();
+        
         localLibraries.removeIf(library -> {
             if (library.isSelected()) {
                 deleteFile(localLibsPath.concat(library.getName()));

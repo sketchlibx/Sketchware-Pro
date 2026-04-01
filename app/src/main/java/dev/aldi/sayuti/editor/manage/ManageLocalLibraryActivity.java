@@ -197,7 +197,10 @@ public class ManageLocalLibraryActivity extends BaseAppCompatActivity {
 
             LibraryDownloaderDialogFragment fragment = new LibraryDownloaderDialogFragment();
             fragment.setArguments(bundle);
-            fragment.setOnLibraryDownloadedTask(this::runLoadLocalLibrariesTask);
+            fragment.setOnLibraryDownloadedTask(() -> {
+                LocalLibrariesUtil.clearCache(); // Force refresh from disk when new lib is downloaded
+                runLoadLocalLibrariesTask();
+            });
             fragment.show(getSupportFragmentManager(), "library_downloader_dialog");
         });
 
@@ -234,8 +237,8 @@ public class ManageLocalLibraryActivity extends BaseAppCompatActivity {
     }
 
     private void runLoadLocalLibrariesTask() {
-        k();
-        new Handler().postDelayed(() -> new LoadLocalLibrariesTask(this).execute(), 500L);
+        k(); // Show loading dialog
+        new LoadLocalLibrariesTask(this).execute();
     }
 
     private List<LocalLibrary> getAdapterLocalLibraries() {
@@ -277,14 +280,12 @@ public class ManageLocalLibraryActivity extends BaseAppCompatActivity {
     }
 
     // This method is running from the background thread.
-    // So, every UI operation must be called inside `runOnUiThread`.
     private void loadLibraries() {
         var localLibraries = getAllLocalLibraries();
         if (!notAssociatedWithProject) {
             projectUsedLibs = getLocalLibraries(scId);
         }
 
-        //This code helps in sorting the list of local libraries to display enabled libraries first.
         localLibraries.sort((lib1, lib2) -> {
             boolean isEnabled1 = isUsedLibrary(lib1.getName());
             boolean isEnabled2 = isUsedLibrary(lib2.getName());
@@ -323,18 +324,18 @@ public class ManageLocalLibraryActivity extends BaseAppCompatActivity {
 
         @Override
         public void a() {
-            activity.get().h();
+            if (activity.get() != null) activity.get().h();
         }
 
         @Override
         public void a(String idk) {
-            activity.get().h();
+            if (activity.get() != null) activity.get().h();
         }
 
         @Override
         public void b() {
             try {
-                activity.get().loadLibraries();
+                if (activity.get() != null) activity.get().loadLibraries();
             } catch (Exception e) {
                 e.printStackTrace();
             }
@@ -432,7 +433,6 @@ public class ManageLocalLibraryActivity extends BaseAppCompatActivity {
         private void onItemClicked(ViewItemLocalLibBinding binding, String name) {
             HashMap<String, Object> localLibrary;
             if (!binding.materialSwitch.isChecked()) {
-                // Remove the library from the list
                 int indexToRemove = -1;
                 for (int i = 0; i < projectUsedLibs.size(); i++) {
                     Map<String, Object> libraryMap = projectUsedLibs.get(i);
@@ -445,8 +445,6 @@ public class ManageLocalLibraryActivity extends BaseAppCompatActivity {
                     projectUsedLibs.remove(indexToRemove);
                 }
             } else {
-                // Add the library to the list
-                // Here, we need to find the dependency string if it exists
                 String dependency = null;
                 for (Map<String, Object> libraryMap : projectUsedLibs) {
                     if (name.equals(libraryMap.get("name").toString())) {
@@ -527,7 +525,6 @@ public class ManageLocalLibraryActivity extends BaseAppCompatActivity {
         private void onItemClicked(ViewItemLocalLibSearchBinding binding, String name) {
             HashMap<String, Object> localLibrary;
             if (!binding.materialSwitch.isChecked()) {
-                // Remove the library from the list
                 int indexToRemove = -1;
                 for (int i = 0; i < projectUsedLibs.size(); i++) {
                     Map<String, Object> libraryMap = projectUsedLibs.get(i);
@@ -540,8 +537,6 @@ public class ManageLocalLibraryActivity extends BaseAppCompatActivity {
                     projectUsedLibs.remove(indexToRemove);
                 }
             } else {
-                // Add the library to the list
-                // Here, we need to find the dependency string if it exists
                 String dependency = null;
                 for (Map<String, Object> libraryMap : projectUsedLibs) {
                     if (name.equals(libraryMap.get("name").toString())) {
@@ -566,7 +561,6 @@ public class ManageLocalLibraryActivity extends BaseAppCompatActivity {
                     }
                 }
             }
-            // Sorts the filtered search results to ensure enabled libraries still appear at the top.
             filteredLocalLibraries.sort((lib1, lib2) -> {
                 boolean isEnabled1 = isUsedLibrary(lib1.getName());
                 boolean isEnabled2 = isUsedLibrary(lib2.getName());

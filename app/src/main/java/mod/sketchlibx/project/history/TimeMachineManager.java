@@ -1,0 +1,87 @@
+package mod.sketchlibx.project.history;
+
+import android.os.Environment;
+import java.io.File;
+import java.text.SimpleDateFormat;
+import java.util.Arrays;
+import java.util.Date;
+import java.util.Locale;
+
+import mod.hey.studios.project.backup.BackupFactory;
+import pro.sketchware.utility.FileUtil;
+
+public class TimeMachineManager {
+
+    private static final String HISTORY_DIR = ".sketchware/backups/history/";
+    private static final int MAX_SNAPSHOTS = 20;
+
+    /**
+     * Takes a lightweight silent snapshot of the logic and UI data.
+     */
+    public static void takeSnapshot(String sc_id) {
+        new Thread(() -> {
+            try {
+                File historyFolder = new File(Environment.getExternalStorageDirectory(), HISTORY_DIR + sc_id);
+                if (!historyFolder.exists()) historyFolder.mkdirs();
+
+                String timestamp = new SimpleDateFormat("dd-MMM-yyyy_hh-mm-ss_a", Locale.ENGLISH).format(new Date());
+                File outZip = new File(historyFolder, "Snapshot_" + timestamp + ".zip");
+
+                File tempDir = new File(Environment.getExternalStorageDirectory(), ".sketchware/cache/history_temp_" + sc_id);
+                if (tempDir.exists()) FileUtil.deleteFile(tempDir.getAbsolutePath());
+                tempDir.mkdirs();
+
+                File dataDir = new File(Environment.getExternalStorageDirectory(), ".sketchware/data/" + sc_id);
+                File projFile = new File(Environment.getExternalStorageDirectory(), ".sketchware/mysc/list/" + sc_id + "/project");
+
+                // Only copy pure logic and view data, extremely fast and lightweight
+                BackupFactory.copy(dataDir, new File(tempDir, "data"));
+                BackupFactory.copy(projFile, new File(tempDir, "project"));
+
+                BackupFactory.zipFolder(tempDir, outZip);
+                FileUtil.deleteFile(tempDir.getAbsolutePath());
+                
+                // Auto-cleanup: Keep only the latest 20 snapshots
+                File[] files = historyFolder.listFiles();
+                if (files != null && files.length > MAX_SNAPSHOTS) {
+                    Arrays.sort(files, (f1, f2) -> Long.compare(f1.lastModified(), f2.lastModified()));
+                    int toDelete = files.length - MAX_SNAPSHOTS;
+                    for (int i = 0; i < toDelete; i++) {
+                        files[i].delete();
+                    }
+                }
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+        }).start();
+    }
+
+    /**
+     * Restores a previously saved snapshot.
+     */
+    public static boolean restoreSnapshot(String sc_id, File snapshotZip) {
+        try {
+            File tempDir = new File(Environment.getExternalStorageDirectory(), ".sketchware/cache/history_temp_" + sc_id);
+            if (tempDir.exists()) FileUtil.deleteFile(tempDir.getAbsolutePath());
+            tempDir.mkdirs();
+
+            boolean unzipped = BackupFactory.unzip(snapshotZip, tempDir);
+            if (!unzipped) return false;
+
+            File dataDir = new File(Environment.getExternalStorageDirectory(), ".sketchware/data/" + sc_id);
+            File projFile = new File(Environment.getExternalStorageDirectory(), ".sketchware/mysc/list/" + sc_id + "/project");
+
+            // Overwrite existing data
+            FileUtil.deleteFile(dataDir.getAbsolutePath());
+            
+            BackupFactory.copySafe(new File(tempDir, "data"), dataDir);
+            BackupFactory.copySafe(new File(tempDir, "project"), projFile);
+
+            FileUtil.deleteFile(tempDir.getAbsolutePath());
+            return true;
+        } catch (Exception e) {
+            e.printStackTrace();
+            return false;
+        }
+    }
+}
