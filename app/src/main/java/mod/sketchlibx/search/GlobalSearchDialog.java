@@ -30,6 +30,7 @@ public class GlobalSearchDialog extends BottomSheetDialogFragment {
     private RecyclerView recyclerView;
     private SearchAdapter adapter;
     private ProjectSearchEngine searchEngine;
+    private TextView searchInfo;
 
     public GlobalSearchDialog(String sc_id, DesignActivity activity) {
         this.sc_id = sc_id;
@@ -43,6 +44,8 @@ public class GlobalSearchDialog extends BottomSheetDialogFragment {
 
         TextInputEditText searchBox = root.findViewById(R.id.edit_search);
         recyclerView = root.findViewById(R.id.rv_search_results);
+        searchInfo = root.findViewById(R.id.search_info);
+        
         recyclerView.setLayoutManager(new LinearLayoutManager(getContext()));
 
         adapter = new SearchAdapter(new ArrayList<>());
@@ -56,8 +59,17 @@ public class GlobalSearchDialog extends BottomSheetDialogFragment {
 
             @Override
             public void afterTextChanged(Editable s) {
+                String query = s.toString();
+                if (query.isEmpty()) {
+                    searchInfo.setVisibility(View.VISIBLE);
+                    adapter.updateData(new ArrayList<>());
+                    return;
+                }
+                
+                searchInfo.setVisibility(View.GONE);
+                
                 new Thread(() -> {
-                    List<SearchResult> results = searchEngine.search(s.toString());
+                    List<SearchResult> results = searchEngine.search(query);
                     if (getActivity() != null) {
                         getActivity().runOnUiThread(() -> adapter.updateData(results));
                     }
