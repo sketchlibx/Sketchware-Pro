@@ -47,8 +47,11 @@ import com.google.api.services.drive.DriveScopes;
 import org.jetbrains.annotations.NotNull;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 import java.util.concurrent.TimeUnit;
 
 import a.a.a.lC;
@@ -161,8 +164,6 @@ public class AppSettings extends BaseAppCompatActivity {
         preferences.forEach(content::addView);
     }
 
-    // --- PRO-LEVEL CLOUD LOGIC ---
-    
     private void showErrorDialog(String title, String errorMessage) {
         new MaterialAlertDialogBuilder(this)
             .setTitle(title)
@@ -212,7 +213,7 @@ public class AppSettings extends BaseAppCompatActivity {
                     switch (which) {
                         case 0 -> triggerSelectiveCloudBackup(account);
                         case 1 -> triggerSelectiveCloudRestore(account);
-                        case 2 -> openAutoBackupSettings();
+                        case 2 -> configureAutoBackupProjects();
                         case 3 -> GoogleSignIn.getClient(this, GoogleSignInOptions.DEFAULT_SIGN_IN).signOut()
                                 .addOnCompleteListener(task -> SketchwareUtil.toast("Signed out successfully"));
                     }
@@ -221,7 +222,6 @@ public class AppSettings extends BaseAppCompatActivity {
         }
     }
 
-    // --- SELECTIVE BACKUP ---
     private void triggerSelectiveCloudBackup(GoogleSignInAccount account) {
         ArrayList<HashMap<String, Object>> projects = lC.a();
         if (projects == null || projects.isEmpty()) {
@@ -234,7 +234,7 @@ public class AppSettings extends BaseAppCompatActivity {
         
         for (int i = 0; i < projects.size(); i++) {
             projectNames[i] = (String) projects.get(i).get("my_app_name");
-            checkedItems[i] = true; // Default select all
+            checkedItems[i] = true;
         }
 
         new MaterialAlertDialogBuilder(this)
@@ -293,7 +293,6 @@ public class AppSettings extends BaseAppCompatActivity {
         }).start();
     }
 
-    // --- SELECTIVE RESTORE ---
     private void triggerSelectiveCloudRestore(GoogleSignInAccount account) {
         AlertDialog loadingDialog = new MaterialAlertDialogBuilder(this)
             .setTitle("Fetching cloud backups...")
@@ -369,6 +368,42 @@ public class AppSettings extends BaseAppCompatActivity {
         }).start();
     }
 
+    // --- AUTO-BACKUP SELECTION LOGIC ---
+    private void configureAutoBackupProjects() {
+        ArrayList<HashMap<String, Object>> projects = lC.a();
+        if (projects == null || projects.isEmpty()) {
+            SketchwareUtil.toast("No local projects found.");
+            return;
+        }
+
+        SharedPreferences prefs = getSharedPreferences("cloud_backup_prefs", MODE_PRIVATE);
+        Set<String> selectedScIds = prefs.getStringSet("auto_backup_sc_ids", new HashSet<>());
+
+        String[] projectNames = new String[projects.size()];
+        String[] scIds = new String[projects.size()];
+        boolean[] checkedItems = new boolean[projects.size()];
+
+        for (int i = 0; i < projects.size(); i++) {
+            scIds[i] = (String) projects.get(i).get("sc_id");
+            projectNames[i] = (String) projects.get(i).get("my_app_name");
+            checkedItems[i] = selectedScIds.isEmpty() || selectedScIds.contains(scIds[i]);
+        }
+
+        new MaterialAlertDialogBuilder(this)
+            .setTitle("Select Projects for Auto-Backup")
+            .setMultiChoiceItems(projectNames, checkedItems, (dialog, which, isChecked) -> checkedItems[which] = isChecked)
+            .setPositiveButton("Next", (dialog, which) -> {
+                Set<String> newSelectedScIds = new HashSet<>();
+                for (int i = 0; i < checkedItems.length; i++) {
+                    if (checkedItems[i]) newSelectedScIds.add(scIds[i]);
+                }
+                prefs.edit().putStringSet("auto_backup_sc_ids", newSelectedScIds).apply();
+                openAutoBackupSettings();
+            })
+            .setNegativeButton(R.string.common_word_cancel, null)
+            .show();
+    }
+
     private void openAutoBackupSettings() {
         String[] intervals = {"Off (Manual Only)", "Daily", "Weekly", "Monthly"};
         SharedPreferences prefs = getSharedPreferences("cloud_backup_prefs", MODE_PRIVATE);
@@ -400,11 +435,11 @@ public class AppSettings extends BaseAppCompatActivity {
             PeriodicWorkRequest request = new PeriodicWorkRequest.Builder(
                 AutoBackupWorker.class, days, TimeUnit.DAYS
             ).build();
-            workManager.enqueueUniquePeriodicWork("CloudAutoBackup_Recurring", ExistingPeriodicWorkPolicy.REPLACE, request);
+            // Changed policy to KEEP so it doesn't trigger unexpectedly on app updates
+            workManager.enqueueUniquePeriodicWork("CloudAutoBackup_Recurring", ExistingPeriodicWorkPolicy.KEEP, request);
         }
     }
 
-    // --- OTHER PREFERENCES METHODS (Unchanged) ---
     private View.OnClickListener openSettingsActivity(String fragmentTag) {
         return v -> {
             Intent intent = new Intent(v.getContext(), SettingsActivity.class);

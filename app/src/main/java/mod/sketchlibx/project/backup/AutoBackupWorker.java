@@ -4,6 +4,7 @@ import android.app.Notification;
 import android.app.NotificationChannel;
 import android.app.NotificationManager;
 import android.content.Context;
+import android.content.SharedPreferences;
 import android.os.Build;
 import android.util.Log;
 
@@ -19,6 +20,8 @@ import com.google.android.gms.auth.api.signin.GoogleSignInAccount;
 import java.io.File;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.HashSet;
+import java.util.Set;
 
 import a.a.a.lC;
 import mod.hey.studios.project.backup.BackupFactory;
@@ -51,23 +54,37 @@ public class AutoBackupWorker extends Worker {
 
         CloudBackupManager cloudManager = new CloudBackupManager(context, account);
 
-        // Fetch projects to backup (In Auto-Backup, we do ALL projects, manual backup does specific)
         ArrayList<HashMap<String, Object>> projects = lC.a();
         if (projects == null || projects.isEmpty()) {
             return Result.success();
         }
 
-        int total = projects.size();
+        SharedPreferences prefs = context.getSharedPreferences("cloud_backup_prefs", Context.MODE_PRIVATE);
+        Set<String> selectedScIds = prefs.getStringSet("auto_backup_sc_ids", new HashSet<>());
+
+        // Only backup projects that user selected for auto backup
+        ArrayList<HashMap<String, Object>> projectsToBackup = new ArrayList<>();
+        if (selectedScIds.isEmpty()) {
+            projectsToBackup.addAll(projects); // Backup all if no specific selection
+        } else {
+            for (HashMap<String, Object> project : projects) {
+                if (selectedScIds.contains((String) project.get("sc_id"))) {
+                    projectsToBackup.add(project);
+                }
+            }
+        }
+
+        int total = projectsToBackup.size();
+        if (total == 0) return Result.success();
+
         boolean allSuccess = true;
-        
         for (int i = 0; i < total; i++) {
-            HashMap<String, Object> project = projects.get(i);
+            HashMap<String, Object> project = projectsToBackup.get(i);
             String scId = (String) project.get("sc_id");
             String projectName = (String) project.get("my_app_name");
 
             if (scId == null || projectName == null) continue;
 
-            // Show notification progress
             updateNotification("Backing up: " + projectName, i + 1, total);
 
             BackupFactory backupFactory = new BackupFactory(scId);
@@ -95,14 +112,13 @@ public class AutoBackupWorker extends Worker {
 
     private void updateNotification(String text, int current, int total) {
         NotificationCompat.Builder builder = new NotificationCompat.Builder(getApplicationContext(), CHANNEL_ID)
-                .setSmallIcon(android.R.drawable.ic_popup_sync) // Native sync icon
+                .setSmallIcon(android.R.drawable.ic_popup_sync)
                 .setContentTitle("Sketchware Cloud Backup")
                 .setContentText(text)
                 .setProgress(total, current, false)
                 .setOngoing(current < total)
                 .setPriority(NotificationCompat.PRIORITY_LOW);
 
-        // For WorkManager Foreground Service (Required for Android 12+)
         if (current == 1) {
             try {
                 setForegroundAsync(new ForegroundInfo(NOTIFICATION_ID, builder.build()));

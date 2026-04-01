@@ -1,17 +1,19 @@
 package mod.sketchlibx.search;
 
 import android.text.TextUtils;
+import android.util.Pair;
+
+import com.besome.sketch.beans.BlockBean;
+import com.besome.sketch.beans.ComponentBean;
+import com.besome.sketch.beans.ProjectFileBean;
+import com.besome.sketch.beans.ViewBean;
+
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
 import a.a.a.jC;
-import com.besome.sketch.beans.BlockBean;
-import com.besome.sketch.beans.ComponentBean;
-import com.besome.sketch.beans.ProjectFileBean;
-import com.besome.sketch.beans.ViewBean;
-import android.util.Pair;
 
 public class ProjectSearchEngine {
 
@@ -35,7 +37,7 @@ public class ProjectSearchEngine {
             String javaName = file.getJavaName();
             String targetFileName = xmlName.isEmpty() ? javaName : xmlName;
 
-
+            // 1. SCAN VIEWS (XML UI)
             ArrayList<ViewBean> views = jC.a(sc_id).d(targetFileName);
             if (views != null) {
                 for (ViewBean view : views) {
@@ -49,7 +51,8 @@ public class ProjectSearchEngine {
                 }
             }
 
-            ArrayList<ComponentBean> components = jC.a(sc_id).e(targetFileName);
+            // 2. SCAN COMPONENTS
+            ArrayList<ComponentBean> components = jC.a(sc_id).b(targetFileName);
             if (components != null) {
                 for (ComponentBean comp : components) {
                     if (comp.componentId.toLowerCase().contains(q)) {
@@ -61,7 +64,8 @@ public class ProjectSearchEngine {
                 }
             }
 
-            ArrayList<Pair<Integer, String>> vars = jC.a(sc_id).k(targetFileName);
+            // 3. SCAN VARIABLES & LISTS (Fixed: method `e` returns vars in current version)
+            ArrayList<Pair<Integer, String>> vars = jC.a(sc_id).e(targetFileName);
             if (vars != null) {
                 for (Pair<Integer, String> var : vars) {
                     if (var.second.toLowerCase().contains(q)) {
@@ -73,7 +77,8 @@ public class ProjectSearchEngine {
                 }
             }
 
-            HashMap<String, ArrayList<BlockBean>> events = jC.a(sc_id).b(targetFileName);
+            // 4. SCAN LOGIC BLOCKS (Fixed to deep scan logic)
+            HashMap<String, ArrayList<BlockBean>> events = jC.a(sc_id).b(javaName); // b() returns logic
             if (events != null) {
                 for (Map.Entry<String, ArrayList<BlockBean>> entry : events.entrySet()) {
                     String eventName = entry.getKey();

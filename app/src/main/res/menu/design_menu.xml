@@ -10,7 +10,7 @@
 
     <item
         android:id="@+id/design_option_menu_search"
-        android:icon="@drawable/ic_mtrl_search"
+        android:icon="@drawable/ic_mtrl_find_replace"
         android:orderInCategory="100"
         android:title="@string/logic_search_events"
         android:visible="false"
@@ -25,7 +25,7 @@
 
     <item
         android:id="@+id/design_actionbar_titleopen_drawer"
-        android:icon="@drawable/selector_ic_more_tinted_24"
+        android:icon="@drawable/ic_drawer"
         android:orderInCategory="120"
         android:title="Design Drawer"
         app:showAsAction="always" />

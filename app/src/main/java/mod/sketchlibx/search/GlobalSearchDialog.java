@@ -6,8 +6,7 @@ import android.text.TextWatcher;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
-import android.widget.EditText;
-import android.widget.LinearLayout;
+import android.widget.ImageView;
 import android.widget.TextView;
 
 import androidx.annotation.NonNull;
@@ -17,6 +16,7 @@ import androidx.recyclerview.widget.RecyclerView;
 
 import com.besome.sketch.design.DesignActivity;
 import com.google.android.material.bottomsheet.BottomSheetDialogFragment;
+import com.google.android.material.textfield.TextInputEditText;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -39,25 +39,11 @@ public class GlobalSearchDialog extends BottomSheetDialogFragment {
     @Nullable
     @Override
     public View onCreateView(@NonNull LayoutInflater inflater, @Nullable ViewGroup container, @Nullable Bundle savedInstanceState) {
-        // UI created programmatically to avoid extra XML files
-        LinearLayout root = new LinearLayout(getContext());
-        root.setOrientation(LinearLayout.VERTICAL);
-        root.setPadding(32, 32, 32, 32);
+        View root = inflater.inflate(R.layout.dialog_global_search, container, false);
 
-        TextView title = new TextView(getContext());
-        title.setText("Global Project Search");
-        title.setTextSize(18);
-        title.setPadding(0, 0, 0, 16);
-        root.addView(title);
-
-        EditText searchBox = new EditText(getContext());
-        searchBox.setHint("Search views, variables, logic...");
-        searchBox.setSingleLine(true);
-        root.addView(searchBox);
-
-        recyclerView = new RecyclerView(getContext());
+        TextInputEditText searchBox = root.findViewById(R.id.edit_search);
+        recyclerView = root.findViewById(R.id.rv_search_results);
         recyclerView.setLayoutManager(new LinearLayoutManager(getContext()));
-        root.addView(recyclerView);
 
         adapter = new SearchAdapter(new ArrayList<>());
         recyclerView.setAdapter(adapter);
@@ -70,10 +56,11 @@ public class GlobalSearchDialog extends BottomSheetDialogFragment {
 
             @Override
             public void afterTextChanged(Editable s) {
-                // Run in background thread to avoid lagging UI
                 new Thread(() -> {
                     List<SearchResult> results = searchEngine.search(s.toString());
-                    getActivity().runOnUiThread(() -> adapter.updateData(results));
+                    if (getActivity() != null) {
+                        getActivity().runOnUiThread(() -> adapter.updateData(results));
+                    }
                 }).start();
             }
         });
@@ -96,35 +83,25 @@ public class GlobalSearchDialog extends BottomSheetDialogFragment {
         @NonNull
         @Override
         public ViewHolder onCreateViewHolder(@NonNull ViewGroup parent, int viewType) {
-            LinearLayout layout = new LinearLayout(parent.getContext());
-            layout.setOrientation(LinearLayout.VERTICAL);
-            layout.setPadding(16, 24, 16, 24);
-            layout.setLayoutParams(new ViewGroup.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
-
-            TextView title = new TextView(parent.getContext());
-            title.setTag("title");
-            title.setTextSize(16);
-            title.setTextColor(0xFF000000); // Black
-
-            TextView subtitle = new TextView(parent.getContext());
-            subtitle.setTag("subtitle");
-            subtitle.setTextSize(12);
-            subtitle.setTextColor(0xFF757575); // Grey
-
-            layout.addView(title);
-            layout.addView(subtitle);
-
-            return new ViewHolder(layout);
+            View view = LayoutInflater.from(parent.getContext()).inflate(R.layout.item_global_search_result, parent, false);
+            return new ViewHolder(view);
         }
 
         @Override
         public void onBindViewHolder(@NonNull ViewHolder holder, int position) {
             SearchResult result = items.get(position);
-            TextView title = holder.itemView.findViewWithTag("title");
-            TextView subtitle = holder.itemView.findViewWithTag("subtitle");
+            
+            holder.title.setText("[" + result.category + "] " + result.title);
+            holder.subtitle.setText(result.fileName + " • " + result.description);
 
-            title.setText("[" + result.category + "] " + result.title);
-            subtitle.setText(result.fileName + " • " + result.description);
+            // Set dynamic icon based on category
+            switch (result.category) {
+                case "View": holder.icon.setImageResource(R.drawable.ic_mtrl_screen); break;
+                case "Logic Block": holder.icon.setImageResource(R.drawable.ic_mtrl_puzzle); break;
+                case "Variable/List": holder.icon.setImageResource(R.drawable.ic_mtrl_list); break;
+                case "Component": holder.icon.setImageResource(R.drawable.ic_mtrl_component); break;
+                default: holder.icon.setImageResource(R.drawable.ic_mtrl_file);
+            }
 
             holder.itemView.setOnClickListener(v -> {
                 dismiss();
@@ -138,8 +115,13 @@ public class GlobalSearchDialog extends BottomSheetDialogFragment {
         }
 
         class ViewHolder extends RecyclerView.ViewHolder {
+            TextView title, subtitle;
+            ImageView icon;
             public ViewHolder(@NonNull View itemView) {
                 super(itemView);
+                title = itemView.findViewById(R.id.tv_title);
+                subtitle = itemView.findViewById(R.id.tv_subtitle);
+                icon = itemView.findViewById(R.id.img_icon);
             }
         }
     }
