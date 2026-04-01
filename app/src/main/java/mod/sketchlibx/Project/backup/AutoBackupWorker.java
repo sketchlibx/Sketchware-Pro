@@ -15,6 +15,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 
 import a.a.a.lC;
+import mod.hey.studios.project.backup.BackupFactory;
 
 public class AutoBackupWorker extends Worker {
 
@@ -31,7 +32,6 @@ public class AutoBackupWorker extends Worker {
 
         Context context = getApplicationContext();
         
-        // 1. Check if user is logged into Google Drive
         GoogleSignInAccount account = GoogleSignIn.getLastSignedInAccount(context);
         if (account == null) {
             Log.e(TAG, "User not signed in. Cannot perform cloud backup.");
@@ -40,14 +40,12 @@ public class AutoBackupWorker extends Worker {
 
         CloudBackupManager cloudManager = new CloudBackupManager(context, account);
 
-        // 2. Fetch all projects locally
         ArrayList<HashMap<String, Object>> projects = lC.a();
         if (projects == null || projects.isEmpty()) {
             Log.d(TAG, "No projects found to backup.");
             return Result.success();
         }
 
-        // 3. Process each project
         boolean allSuccess = true;
         for (HashMap<String, Object> project : projects) {
             String scId = (String) project.get("sc_id");
@@ -55,17 +53,14 @@ public class AutoBackupWorker extends Worker {
 
             if (scId == null || projectName == null) continue;
 
-            // Generate local SWB backup silently
             BackupFactory backupFactory = new BackupFactory(scId);
             backupFactory.setBackupLocalLibs(true);
             backupFactory.setBackupCustomBlocks(true);
             
-            // Note: In background, we pass 'null' for activity so it doesn't show UI dialogs
             backupFactory.backup(null, projectName);
             File swbFile = backupFactory.getOutFile();
 
             if (swbFile != null && swbFile.exists()) {
-                // Perform synchronous upload in this worker thread
                 try {
                     uploadSync(cloudManager, swbFile, projectName);
                     Log.d(TAG, "Successfully backed up: " + projectName);
@@ -82,7 +77,6 @@ public class AutoBackupWorker extends Worker {
         return allSuccess ? Result.success() : Result.retry();
     }
 
-    // Custom synchronous wrapper to keep the Worker alive until upload completes
     private void uploadSync(CloudBackupManager cloudManager, File swbFile, String projectName) throws Exception {
         final Object lock = new Object();
         final Exception[] uploadError = {null};
@@ -101,7 +95,7 @@ public class AutoBackupWorker extends Worker {
         });
 
         synchronized (lock) {
-            lock.wait(); // Wait for the async task inside CloudBackupManager to finish
+            lock.wait(); 
         }
 
         if (uploadError[0] != null) {
