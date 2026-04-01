@@ -2,6 +2,9 @@ package mod.hilal.saif.activities.tools;
 
 import static com.besome.sketch.editor.view.ViewEditor.shakeView;
 
+import android.content.ClipData;
+import android.content.ClipboardManager;
+import android.content.Context;
 import android.content.Intent;
 import android.content.SharedPreferences;
 import android.net.Uri;
@@ -24,7 +27,6 @@ import androidx.core.graphics.Insets;
 import androidx.core.view.ViewCompat;
 import androidx.core.view.WindowInsetsCompat;
 import androidx.work.ExistingPeriodicWorkPolicy;
-import androidx.work.OneTimeWorkRequest;
 import androidx.work.PeriodicWorkRequest;
 import androidx.work.WorkManager;
 
@@ -45,9 +47,11 @@ import com.google.api.services.drive.DriveScopes;
 import org.jetbrains.annotations.NotNull;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 
+import a.a.a.lC;
 import dev.aldi.sayuti.editor.manage.ManageLocalLibraryActivity;
 import dev.pranav.filepicker.FilePickerCallback;
 import dev.pranav.filepicker.FilePickerDialogFragment;
@@ -55,8 +59,9 @@ import dev.pranav.filepicker.FilePickerOptions;
 import dev.pranav.filepicker.SelectionMode;
 import mod.alucard.tn.apksigner.ApkSigner;
 import mod.hey.studios.code.SrcCodeEditor;
-import mod.sketchlibx.project.backup.AutoBackupWorker;
+import mod.hey.studios.project.backup.BackupFactory;
 import mod.hey.studios.project.backup.BackupRestoreManager;
+import mod.sketchlibx.project.backup.AutoBackupWorker;
 import mod.sketchlibx.project.backup.CloudBackupManager;
 import mod.hey.studios.util.Helper;
 import mod.khaled.logcat.LogReaderActivity;
@@ -70,7 +75,6 @@ import pro.sketchware.utility.SketchwareUtil;
 
 public class AppSettings extends BaseAppCompatActivity {
 
-    // Cloud Backup Integration variables
     private ActivityResultLauncher<Intent> googleSignInLauncher;
     private GoogleSignInClient mGoogleSignInClient;
 
@@ -87,7 +91,6 @@ public class AppSettings extends BaseAppCompatActivity {
             int top = view.getPaddingTop();
             int right = view.getPaddingRight();
             int bottom = view.getPaddingBottom();
-
             ViewCompat.setOnApplyWindowInsetsListener(view, (v, i) -> {
                 Insets insets = i.getInsets(WindowInsetsCompat.Type.systemBars() | WindowInsetsCompat.Type.displayCutout());
                 v.setPadding(left + insets.left, top + insets.top, right + insets.right, bottom + insets.bottom);
@@ -101,7 +104,6 @@ public class AppSettings extends BaseAppCompatActivity {
             int top = view.getPaddingTop();
             int right = view.getPaddingRight();
             int bottom = view.getPaddingBottom();
-
             ViewCompat.setOnApplyWindowInsetsListener(view, (v, i) -> {
                 Insets insets = i.getInsets(WindowInsetsCompat.Type.systemBars());
                 v.setPadding(left, top, right, bottom + insets.bottom);
@@ -111,16 +113,15 @@ public class AppSettings extends BaseAppCompatActivity {
 
         binding.topAppBar.setNavigationOnClickListener(Helper.getBackPressedClickListener(this));
 
-        // Initialize Google Sign-In Launcher
         googleSignInLauncher = registerForActivityResult(new ActivityResultContracts.StartActivityForResult(), result -> {
             if (result.getResultCode() == RESULT_OK && result.getData() != null) {
                 Task<GoogleSignInAccount> task = GoogleSignIn.getSignedInAccountFromIntent(result.getData());
                 try {
                     GoogleSignInAccount account = task.getResult(ApiException.class);
                     SketchwareUtil.toast("Signed in as " + account.getEmail());
-                    openCloudBackupDialog(); // Re-open the dialog showing logged-in options
+                    openCloudBackupDialog();
                 } catch (ApiException e) {
-                    SketchwareUtil.toastError("Google Sign-In failed: " + e.getStatusCode());
+                    showErrorDialog("Sign-In Error", "Google Sign-In failed with code: " + e.getStatusCode() + "\n" + e.getMessage());
                 }
             }
         });
@@ -142,12 +143,10 @@ public class AppSettings extends BaseAppCompatActivity {
         managersCategory.addLibraryItem(createPreference(R.drawable.ic_mtrl_box, "Local library manager", "Manage and download local libraries", new ActivityLauncher(new Intent(getApplicationContext(), ManageLocalLibraryActivity.class), new Pair<>("sc_id", "system"))), true);
         managersCategory.addLibraryItem(createPreference(R.drawable.ic_mtrl_article, Helper.getResString(R.string.design_drawer_menu_title_logcat_reader), Helper.getResString(R.string.design_drawer_menu_subtitle_logcat_reader), new ActivityLauncher(new Intent(getApplicationContext(), LogReaderActivity.class))), false);
 
-        // --- NEW CLOUD BACKUP CATEGORY ---
         LibraryCategoryView cloudCategory = new LibraryCategoryView(this);
         cloudCategory.setTitle("Cloud & Sync");
         preferences.add(cloudCategory);
         cloudCategory.addLibraryItem(createPreference(R.drawable.ic_mtrl_sync, "Cloud Backup", "Backup and restore projects securely to Google Drive", v -> openCloudBackupDialog()), false);
-
 
         LibraryCategoryView generalCategory = new LibraryCategoryView(this);
         generalCategory.setTitle("General");
@@ -162,8 +161,26 @@ public class AppSettings extends BaseAppCompatActivity {
         preferences.forEach(content::addView);
     }
 
-    // --- CLOUD BACKUP LOGIC METHODS ---
+    // --- PRO-LEVEL CLOUD LOGIC ---
     
+    private void showErrorDialog(String title, String errorMessage) {
+        new MaterialAlertDialogBuilder(this)
+            .setTitle(title)
+            .setMessage(errorMessage)
+            .setPositiveButton("Copy Error", (dialog, which) -> {
+                try {
+                    ClipboardManager clipboard = (ClipboardManager) getSystemService(Context.CLIPBOARD_SERVICE);
+                    ClipData clip = ClipData.newPlainText("Error Log", errorMessage);
+                    if (clipboard != null) clipboard.setPrimaryClip(clip);
+                    SketchwareUtil.toast("Copied to clipboard!");
+                } catch (Exception ignored) {
+                    SketchwareUtil.toastError("Failed to copy");
+                }
+            })
+            .setNegativeButton("Close", null)
+            .show();
+    }
+
     private void openCloudBackupDialog() {
         GoogleSignInAccount account = GoogleSignIn.getLastSignedInAccount(this);
         
@@ -183,7 +200,7 @@ public class AppSettings extends BaseAppCompatActivity {
                 .show();
         } else {
             String[] options = {
-                    "Manual Backup (All Projects)", 
+                    "Manual Backup (Select Projects)", 
                     "Restore Projects from Cloud", 
                     "Configure Auto-Backup", 
                     "Sign Out (" + account.getEmail() + ")"
@@ -193,8 +210,8 @@ public class AppSettings extends BaseAppCompatActivity {
                 .setTitle("Cloud Backup Settings")
                 .setItems(options, (dialog, which) -> {
                     switch (which) {
-                        case 0 -> triggerManualCloudBackup();
-                        case 1 -> triggerCloudRestore(account);
+                        case 0 -> triggerSelectiveCloudBackup(account);
+                        case 1 -> triggerSelectiveCloudRestore(account);
                         case 2 -> openAutoBackupSettings();
                         case 3 -> GoogleSignIn.getClient(this, GoogleSignInOptions.DEFAULT_SIGN_IN).signOut()
                                 .addOnCompleteListener(task -> SketchwareUtil.toast("Signed out successfully"));
@@ -204,19 +221,84 @@ public class AppSettings extends BaseAppCompatActivity {
         }
     }
 
-    private void triggerManualCloudBackup() {
-        // Enqueue backup worker for a ONE-TIME task in the background
-        OneTimeWorkRequest manualBackup = new OneTimeWorkRequest.Builder(AutoBackupWorker.class).build();
-        WorkManager.getInstance(this).enqueue(manualBackup);
-        SketchwareUtil.toast("Cloud backup started in the background!");
+    // --- SELECTIVE BACKUP ---
+    private void triggerSelectiveCloudBackup(GoogleSignInAccount account) {
+        ArrayList<HashMap<String, Object>> projects = lC.a();
+        if (projects == null || projects.isEmpty()) {
+            SketchwareUtil.toast("No local projects found.");
+            return;
+        }
+
+        String[] projectNames = new String[projects.size()];
+        boolean[] checkedItems = new boolean[projects.size()];
+        
+        for (int i = 0; i < projects.size(); i++) {
+            projectNames[i] = (String) projects.get(i).get("my_app_name");
+            checkedItems[i] = true; // Default select all
+        }
+
+        new MaterialAlertDialogBuilder(this)
+            .setTitle("Select Projects to Backup")
+            .setMultiChoiceItems(projectNames, checkedItems, (dialog, which, isChecked) -> checkedItems[which] = isChecked)
+            .setPositiveButton("Start Backup", (dialog, which) -> {
+                ArrayList<HashMap<String, Object>> selectedProjects = new ArrayList<>();
+                for (int i = 0; i < checkedItems.length; i++) {
+                    if (checkedItems[i]) selectedProjects.add(projects.get(i));
+                }
+                if (selectedProjects.isEmpty()) {
+                    SketchwareUtil.toast("No projects selected!");
+                    return;
+                }
+                processManualBackupSequence(account, selectedProjects);
+            })
+            .setNegativeButton(R.string.common_word_cancel, null)
+            .show();
     }
 
-    private void triggerCloudRestore(GoogleSignInAccount account) {
-        MaterialAlertDialogBuilder loading = new MaterialAlertDialogBuilder(this)
-            .setTitle("Fetching backups from cloud...")
+    private void processManualBackupSequence(GoogleSignInAccount account, ArrayList<HashMap<String, Object>> projectsToBackup) {
+        AlertDialog progress = new MaterialAlertDialogBuilder(this)
+                .setTitle("Uploading Backups...")
+                .setView(new ProgressBar(this))
+                .setCancelable(false)
+                .show();
+
+        CloudBackupManager cloudManager = new CloudBackupManager(this, account);
+        
+        new Thread(() -> {
+            int successCount = 0;
+            for (HashMap<String, Object> proj : projectsToBackup) {
+                String scId = (String) proj.get("sc_id");
+                String projectName = (String) proj.get("my_app_name");
+
+                BackupFactory factory = new BackupFactory(scId);
+                factory.setBackupLocalLibs(true);
+                factory.setBackupCustomBlocks(true);
+                factory.backup(null, projectName);
+                
+                java.io.File swbFile = factory.getOutFile();
+                if (swbFile != null && swbFile.exists()) {
+                    final Object lock = new Object();
+                    cloudManager.uploadBackupToCloud(swbFile, projectName, new CloudBackupManager.BackupCallback() {
+                        @Override public void onSuccess(String msg) { synchronized (lock) { lock.notify(); } }
+                        @Override public void onError(String err) { synchronized (lock) { lock.notify(); } }
+                    });
+                    try { synchronized (lock) { lock.wait(); } successCount++; } catch (Exception ignored) {}
+                }
+            }
+            int finalSuccessCount = successCount;
+            runOnUiThread(() -> {
+                progress.dismiss();
+                SketchwareUtil.toast("Successfully backed up " + finalSuccessCount + "/" + projectsToBackup.size() + " projects!");
+            });
+        }).start();
+    }
+
+    // --- SELECTIVE RESTORE ---
+    private void triggerSelectiveCloudRestore(GoogleSignInAccount account) {
+        AlertDialog loadingDialog = new MaterialAlertDialogBuilder(this)
+            .setTitle("Fetching cloud backups...")
             .setView(new ProgressBar(this))
-            .setCancelable(false);
-        AlertDialog loadingDialog = loading.show();
+            .setCancelable(false).show();
 
         CloudBackupManager cloudManager = new CloudBackupManager(this, account);
         cloudManager.getCloudBackupsList(new CloudBackupManager.FileListCallback() {
@@ -229,14 +311,22 @@ public class AppSettings extends BaseAppCompatActivity {
                 }
 
                 String[] fileNames = new String[files.size()];
+                boolean[] checkedItems = new boolean[files.size()];
                 for (int i = 0; i < files.size(); i++) {
                     String pName = files.get(i).getProperties() != null ? files.get(i).getProperties().get("projectName") : null;
                     fileNames[i] = pName != null ? pName + " (" + files.get(i).getName() + ")" : files.get(i).getName();
+                    checkedItems[i] = true;
                 }
 
                 new MaterialAlertDialogBuilder(AppSettings.this)
-                    .setTitle("Select a project to Restore")
-                    .setItems(fileNames, (dialog, which) -> downloadAndRestore(cloudManager, files.get(which)))
+                    .setTitle("Select Projects to Restore")
+                    .setMultiChoiceItems(fileNames, checkedItems, (dialog, which, isChecked) -> checkedItems[which] = isChecked)
+                    .setPositiveButton("Restore", (dialog, which) -> {
+                        ArrayList<com.google.api.services.drive.model.File> toRestore = new ArrayList<>();
+                        for (int i = 0; i < checkedItems.length; i++) if (checkedItems[i]) toRestore.add(files.get(i));
+                        if (toRestore.isEmpty()) return;
+                        processRestoreSequence(cloudManager, toRestore);
+                    })
                     .setNegativeButton(R.string.common_word_cancel, null)
                     .show();
             }
@@ -244,35 +334,39 @@ public class AppSettings extends BaseAppCompatActivity {
             @Override
             public void onError(String error) {
                 loadingDialog.dismiss();
-                SketchwareUtil.toastError(error);
+                showErrorDialog("Fetch Error", error);
             }
         });
     }
 
-    private void downloadAndRestore(CloudBackupManager cloudManager, com.google.api.services.drive.model.File driveFile) {
+    private void processRestoreSequence(CloudBackupManager cloudManager, List<com.google.api.services.drive.model.File> filesToRestore) {
         AlertDialog progress = new MaterialAlertDialogBuilder(this)
                 .setTitle("Downloading & Restoring...")
                 .setView(new ProgressBar(this))
-                .setCancelable(false)
-                .show();
+                .setCancelable(false).show();
 
         String downloadPath = new java.io.File(Environment.getExternalStorageDirectory(), "sketchware/backups").getAbsolutePath();
 
-        cloudManager.downloadBackupFromCloud(driveFile.getId(), driveFile.getName(), downloadPath, new CloudBackupManager.BackupCallback() {
-            @Override
-            public void onSuccess(String message) {
-                progress.dismiss();
-                String fullLocalPath = new java.io.File(downloadPath, driveFile.getName()).getAbsolutePath();
-                // We pass 'null' for ProjectsFragment as we are inside Settings, user will refresh manually or we toast them.
-                new BackupRestoreManager(AppSettings.this, null).doRestore(fullLocalPath, true);
+        new Thread(() -> {
+            for (com.google.api.services.drive.model.File driveFile : filesToRestore) {
+                final Object lock = new Object();
+                cloudManager.downloadBackupFromCloud(driveFile.getId(), driveFile.getName(), downloadPath, new CloudBackupManager.BackupCallback() {
+                    @Override
+                    public void onSuccess(String message) {
+                        String fullPath = new java.io.File(downloadPath, driveFile.getName()).getAbsolutePath();
+                        runOnUiThread(() -> new BackupRestoreManager(AppSettings.this, null).doRestore(fullPath, true));
+                        synchronized (lock) { lock.notify(); }
+                    }
+                    @Override
+                    public void onError(String error) {
+                        runOnUiThread(() -> showErrorDialog("Restore Failed", "File: " + driveFile.getName() + "\n" + error));
+                        synchronized (lock) { lock.notify(); }
+                    }
+                });
+                try { synchronized (lock) { lock.wait(); } } catch (Exception ignored) {}
             }
-
-            @Override
-            public void onError(String error) {
-                progress.dismiss();
-                SketchwareUtil.toastError("Download Failed: " + error);
-            }
-        });
+            runOnUiThread(progress::dismiss);
+        }).start();
     }
 
     private void openAutoBackupSettings() {
@@ -309,9 +403,8 @@ public class AppSettings extends BaseAppCompatActivity {
             workManager.enqueueUniquePeriodicWork("CloudAutoBackup_Recurring", ExistingPeriodicWorkPolicy.REPLACE, request);
         }
     }
-    // --- END CLOUD BACKUP LOGIC METHODS ---
 
-
+    // --- OTHER PREFERENCES METHODS (Unchanged) ---
     private View.OnClickListener openSettingsActivity(String fragmentTag) {
         return v -> {
             Intent intent = new Intent(v.getContext(), SettingsActivity.class);
