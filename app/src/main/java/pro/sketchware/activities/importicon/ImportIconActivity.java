@@ -1,4 +1,3 @@
-// ImportIconActivity.java
 package pro.sketchware.activities.importicon;
 
 import android.app.Activity;
@@ -17,6 +16,7 @@ import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
 import android.widget.Button;
+import android.widget.Toast;
 
 import androidx.activity.OnBackPressedCallback;
 import androidx.annotation.NonNull;
@@ -68,12 +68,15 @@ public class ImportIconActivity extends BaseAppCompatActivity implements IconAda
     private String iconName;
     private WB iconNameValidator;
     private MenuItem search;
+    private MenuItem saveMultipleMenu;
     private SearchView searchView;
     private final OnBackPressedCallback searchViewCloser = new OnBackPressedCallback(true) {
         @Override
         public void handleOnBackPressed() {
             setEnabled(false);
-            if (search.isActionViewExpanded()) {
+            if (adapter != null && adapter.isSelectionMode()) {
+                adapter.clearSelection();
+            } else if (search != null && search.isActionViewExpanded()) {
                 search.collapseActionView();
                 searchView.setQuery("", true);
             } else {
@@ -126,6 +129,8 @@ public class ImportIconActivity extends BaseAppCompatActivity implements IconAda
         binding = ImportIconBinding.inflate(getLayoutInflater());
         setContentView(binding.getRoot());
 
+        getOnBackPressedDispatcher().addCallback(this, searchViewCloser);
+
         ColorPickerDialog colorpicker = new ColorPickerDialog(this, 0xFF9E9E9E, false, false);
         svgUtils = new SvgUtils(this);
         Toolbar toolbar = binding.toolbar.toolbar;
@@ -136,12 +141,17 @@ public class ImportIconActivity extends BaseAppCompatActivity implements IconAda
         getSupportActionBar().setDisplayShowTitleEnabled(true);
         toolbar.setNavigationOnClickListener(v -> {
             if (!mB.a()) {
-                onBackPressed();
+                if (adapter != null && adapter.isSelectionMode()) {
+                    adapter.clearSelection();
+                } else {
+                    onBackPressed();
+                }
             }
         });
 
         sc_id = getIntent().getStringExtra("sc_id");
         alreadyAddedImageNames = getIntent().getStringArrayListExtra("imageNames");
+        if (alreadyAddedImageNames == null) alreadyAddedImageNames = new ArrayList<>();
 
         binding.imageList.setLayoutManager(new GridLayoutManager(getBaseContext(), getGridLayoutColumnCount()));
         adapter = new IconAdapter(this, selected_icon_type, selected_color, this);
@@ -165,14 +175,12 @@ public class ImportIconActivity extends BaseAppCompatActivity implements IconAda
 
                     if ((visibleItemCount + firstVisibleItemPosition) >= totalItemCount
                             && firstVisibleItemPosition >= 0) {
-                        // Reached the end, load more items
                         isLoading = true;
                         loadMoreItems();
                     }
                 }
             }
         });
-
 
         new Handler().postDelayed(() -> new InitialIconLoader(this).execute(), 300L);
     }
@@ -185,9 +193,7 @@ public class ImportIconActivity extends BaseAppCompatActivity implements IconAda
         searchView.setQueryHint("Search");
         searchView.setOnQueryTextListener(new SearchView.OnQueryTextListener() {
             @Override
-            public boolean onQueryTextSubmit(String query) {
-                return false;
-            }
+            public boolean onQueryTextSubmit(String query) { return false; }
 
             @Override
             public boolean onQueryTextChange(String newText) {
@@ -195,6 +201,12 @@ public class ImportIconActivity extends BaseAppCompatActivity implements IconAda
                 return true;
             }
         });
+
+        saveMultipleMenu = menu.add(Menu.NONE, 999, Menu.NONE, "Save Selected");
+        saveMultipleMenu.setIcon(R.drawable.ic_mtrl_save);
+        saveMultipleMenu.setShowAsAction(MenuItem.SHOW_AS_ACTION_ALWAYS);
+        saveMultipleMenu.setVisible(false);
+
         return super.onCreateOptionsMenu(menu);
     }
 
@@ -202,14 +214,82 @@ public class ImportIconActivity extends BaseAppCompatActivity implements IconAda
     public boolean onOptionsItemSelected(@NonNull MenuItem item) {
         if (item.getItemId() == R.id.menu_find) {
             searchViewCloser.setEnabled(true);
-            getOnBackPressedDispatcher().addCallback(this, searchViewCloser);
+            return true;
+        } else if (item.getItemId() == 999) {
+            saveSelectedIcons();
             return true;
         }
         return super.onOptionsItemSelected(item);
     }
 
+    private void saveSelectedIcons() {
+        if (adapter.getSelectedItems().isEmpty()) return;
+
+        ArrayList<String> outNames = new ArrayList<>();
+        ArrayList<String> outPaths = new ArrayList<>();
+
+        for (int pos : adapter.getSelectedItems()) {
+            Pair<String, String> item = adapter.getCurrentList().get(pos);
+            String baseName = "ic_" + item.first.replace("-", "_") + "_" + selected_icon_type;
+            String finalName = baseName;
+            int counter = 1;
+            
+            // Avoid duplicates
+            while (alreadyAddedImageNames.contains(finalName) || outNames.contains(finalName)) {
+                finalName = baseName + "_" + counter;
+                counter++;
+            }
+            outNames.add(finalName);
+            outPaths.add(item.second + File.separator + selected_icon_type + ".svg");
+        }
+
+        Intent intent = new Intent();
+        // Support caller if it uses arrays
+        intent.putStringArrayListExtra("iconNames", outNames);
+        intent.putStringArrayListExtra("iconPaths", outPaths);
+        
+        // Backward compatibility for single return fallback
+        intent.putExtra("iconName", outNames.get(0));
+        intent.putExtra("iconPath", outPaths.get(0));
+        
+        intent.putExtra("iconColor", selected_color);
+        intent.putExtra("iconColorHex", selected_color_hex);
+        
+        setResult(Activity.RESULT_OK, intent);
+        finish();
+    }
+
+    @Override
+    public void onIconSelected(int position) {
+        if (!mB.a()) {
+            selectedIconPosition = position;
+            setIconName(position);
+            showSaveDialog(position);
+        }
+    }
+
+    @Override
+    public void onIconLongClicked(int position) {
+        searchViewCloser.setEnabled(true);
+    }
+
+    @Override
+    public void onSelectionChanged(int count) {
+        if (count > 0) {
+            Objects.requireNonNull(getSupportActionBar()).setTitle(count + " selected");
+            if (search != null) search.setVisible(false);
+            if (saveMultipleMenu != null) saveMultipleMenu.setVisible(true);
+            searchViewCloser.setEnabled(true);
+        } else {
+            Objects.requireNonNull(getSupportActionBar()).setTitle(R.string.design_manager_icon_actionbar_title);
+            if (search != null) search.setVisible(true);
+            if (saveMultipleMenu != null) saveMultipleMenu.setVisible(false);
+            searchViewCloser.setEnabled(false);
+        }
+    }
+
     private void setIconName(int iconPosition) {
-        iconName = ("icon_" + adapter.getCurrentList().get(iconPosition).first + "_" + selected_icon_type);
+        iconName = ("ic_" + adapter.getCurrentList().get(iconPosition).first.replace("-", "_") + "_" + selected_icon_type);
     }
 
     private void setIconColor() {
@@ -232,8 +312,7 @@ public class ImportIconActivity extends BaseAppCompatActivity implements IconAda
         }
 
         icons = new ArrayList<>();
-        currentPage = 0; // Reset currentPage to zero
-        Log.d("icons", allIconPaths.toString());
+        currentPage = 0; 
         runOnUiThread(this::loadMoreItems);
     }
 
@@ -248,7 +327,6 @@ public class ImportIconActivity extends BaseAppCompatActivity implements IconAda
             adapter.submitList(new ArrayList<>(icons));
             currentPage++;
         } else {
-            // No more items to load
             isLastPage = true;
         }
         isLoading = false;
@@ -408,11 +486,19 @@ public class ImportIconActivity extends BaseAppCompatActivity implements IconAda
                 if (iconNameValidator.b() && selectedIconPosition >= 0) {
                     String resFullname = adapter.getCurrentList().get(selectedIconPosition).second + File.separator + selected_icon_type + ".svg";
                     Intent intent = new Intent();
+                    
+                    // Send Single Standard Payload
                     intent.putExtra("iconName", Helper.getText(dialogBinding.inputText));
                     intent.putExtra("iconPath", resFullname);
-
                     intent.putExtra("iconColor", selected_color);
                     intent.putExtra("iconColorHex", selected_color_hex);
+                    
+                    // Also send array payload for consistency
+                    ArrayList<String> n = new ArrayList<>(); n.add(Helper.getText(dialogBinding.inputText));
+                    ArrayList<String> p = new ArrayList<>(); p.add(resFullname);
+                    intent.putStringArrayListExtra("iconNames", n);
+                    intent.putStringArrayListExtra("iconPaths", p);
+                    
                     setResult(Activity.RESULT_OK, intent);
                     finish();
                 } else {
@@ -435,15 +521,6 @@ public class ImportIconActivity extends BaseAppCompatActivity implements IconAda
         dialogBinding.inputText.setText(iconName);
         dialog.setView(dialogBinding.getRoot());
         dialog.show();
-    }
-
-    @Override
-    public void onIconSelected(int position) {
-        if (!mB.a()) {
-            selectedIconPosition = position;
-            setIconName(position);
-            showSaveDialog(position);
-        }
     }
 
     private static class InitialIconLoader extends MA {

@@ -12,7 +12,6 @@ import android.view.MenuItem;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.RadioButton;
-import android.widget.Toast;
 
 import androidx.activity.result.ActivityResultLauncher;
 import androidx.activity.result.contract.ActivityResultContracts;
@@ -72,17 +71,6 @@ public class ProjectsFragment extends DA {
             }
         }
     });
-
-    private final ActivityResultLauncher<Intent> pickAsZipLauncher = registerForActivityResult(
-            new ActivityResultContracts.StartActivityForResult(), result -> {
-                if (result.getResultCode() == Activity.RESULT_OK) {
-                    Intent data = result.getData();
-                    if (data != null && data.getData() != null) {
-                        Uri zipUri = data.getData();
-                        new mod.sketchlibx.importer.ASProjectImporter(requireActivity(), zipUri, ProjectsFragment.this).execute();
-                    }
-                }
-            });
 
     private DB preference;
     private SearchView projectsSearchView;
@@ -148,9 +136,7 @@ public class ProjectsFragment extends DA {
                     if (which == 0) {
                         new BackupRestoreManager(getActivity(), this).restore();
                     } else if (which == 1) {
-                        Intent intent = new Intent(Intent.ACTION_GET_CONTENT);
-                        intent.setType("application/zip");
-                        pickAsZipLauncher.launch(intent);
+                        ASProjectImporter.showPicker(requireActivity(), this);
                     }
                 })
                 .show();

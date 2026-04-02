@@ -5,9 +5,12 @@ import static com.besome.sketch.Config.VAR_DEFAULT_TARGET_SDK_VERSION;
 
 import android.app.Activity;
 import android.view.View;
+import android.widget.CheckBox;
+import android.widget.LinearLayout;
 
 import com.google.android.material.bottomsheet.BottomSheetBehavior;
 import com.google.android.material.bottomsheet.BottomSheetDialog;
+import com.google.android.material.checkbox.MaterialCheckBox;
 
 import pro.sketchware.databinding.DialogProjectSettingsBinding;
 
@@ -15,6 +18,7 @@ public class ProjectSettingsDialog {
 
     private final Activity activity;
     private final ProjectSettings settings;
+    public static final String SETTING_ENABLE_VERSION_HISTORY = "enable_version_history";
 
     public ProjectSettingsDialog(Activity activity, String sc_id) {
         this.activity = activity;
@@ -39,13 +43,15 @@ public class ProjectSettingsDialog {
         binding.etTargetSdkVersion.setText(settings.getValue(ProjectSettings.SETTING_TARGET_SDK_VERSION, String.valueOf(VAR_DEFAULT_TARGET_SDK_VERSION)));
         binding.etApplicationClassName.setText(settings.getValue(ProjectSettings.SETTING_APPLICATION_CLASS, ".SketchApplication"));
 
-        binding.cbEnableViewbinding.setChecked(
-                settings.getValue(ProjectSettings.SETTING_ENABLE_VIEWBINDING, "false").equals("true"));
-        binding.cbRemoveOldMethods.setChecked(
-                settings.getValue(ProjectSettings.SETTING_DISABLE_OLD_METHODS, "true").equals("true"));
-        binding.cbUseNewMaterialComponentsAppTheme.setChecked(
-                settings.getValue(ProjectSettings.SETTING_ENABLE_BRIDGELESS_THEMES, "false").equals("true"));
+        MaterialCheckBox cbVersionHistory = binding.getRoot().findViewById(pro.sketchware.R.id.cb_enable_version_history);
+        LinearLayout layoutVersionHistory = binding.getRoot().findViewById(pro.sketchware.R.id.enable_version_history);
+        
+        cbVersionHistory.setChecked(settings.getValue(SETTING_ENABLE_VERSION_HISTORY, "false").equals("true"));
+        binding.cbEnableViewbinding.setChecked(settings.getValue(ProjectSettings.SETTING_ENABLE_VIEWBINDING, "false").equals("true"));
+        binding.cbRemoveOldMethods.setChecked(settings.getValue(ProjectSettings.SETTING_DISABLE_OLD_METHODS, "true").equals("true"));
+        binding.cbUseNewMaterialComponentsAppTheme.setChecked(settings.getValue(ProjectSettings.SETTING_ENABLE_BRIDGELESS_THEMES, "false").equals("true"));
 
+        layoutVersionHistory.setOnClickListener(v -> cbVersionHistory.performClick());
         binding.enableViewbinding.setOnClickListener(v -> binding.cbEnableViewbinding.performClick());
         binding.removeOldMethods.setOnClickListener(v -> binding.cbRemoveOldMethods.performClick());
         binding.useNewMaterialComponentsAppTheme.setOnClickListener(v -> binding.cbUseNewMaterialComponentsAppTheme.performClick());
@@ -53,6 +59,7 @@ public class ProjectSettingsDialog {
         binding.etMinimumSdkVersion.setTag(ProjectSettings.SETTING_MINIMUM_SDK_VERSION);
         binding.etTargetSdkVersion.setTag(ProjectSettings.SETTING_TARGET_SDK_VERSION);
         binding.etApplicationClassName.setTag(ProjectSettings.SETTING_APPLICATION_CLASS);
+        cbVersionHistory.setTag(SETTING_ENABLE_VERSION_HISTORY);
         binding.cbEnableViewbinding.setTag(ProjectSettings.SETTING_ENABLE_VIEWBINDING);
         binding.cbRemoveOldMethods.setTag(ProjectSettings.SETTING_DISABLE_OLD_METHODS);
         binding.cbUseNewMaterialComponentsAppTheme.setTag(ProjectSettings.SETTING_ENABLE_BRIDGELESS_THEMES);
@@ -63,6 +70,7 @@ public class ProjectSettingsDialog {
                 binding.etMinimumSdkVersion,
                 binding.etTargetSdkVersion,
                 binding.etApplicationClassName,
+                cbVersionHistory,
                 binding.cbEnableViewbinding,
                 binding.cbRemoveOldMethods,
                 binding.cbUseNewMaterialComponentsAppTheme

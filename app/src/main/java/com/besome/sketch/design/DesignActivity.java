@@ -1653,17 +1653,20 @@ public class DesignActivity extends BaseAppCompatActivity implements View.OnClic
     }
     
 
-    public void reloadProjectAfterTimeTravel() {
+        public void reloadProjectAfterTimeTravel() {
         k(); // Show loading dialog
-        new Thread(() -> {
-            loadProject(false); // Reload data from internal storage
-            runOnUiThread(() -> {
-                updateBottomMenu();
-                refresh(); // Refresh the ViewPager and UI
-                h(); // Hide loading dialog
-                SketchwareUtil.toast("Time travel successful! Project restored.");
-            });
-        }).start();
+        new Handler(Looper.getMainLooper()).postDelayed(() -> {
+            try {
+                // Hard restart the Design Activity to force redraw the canvas from the newly unzipped snapshot
+                Intent intent = getIntent();
+                finish(); // Close current messed up UI state
+                startActivity(intent); // Start fresh with restored files
+                SketchwareUtil.toast("Reverted successfully");
+            } catch (Exception e) {
+                h();
+                SketchwareUtil.toastError("Failed to restart design interface: " + e.getMessage());
+            }
+        }, 1000); // 1 second delay to ensure files are fully written by the system
     }
     
 }

@@ -27,8 +27,6 @@ import java.io.InputStream;
 import java.lang.ref.WeakReference;
 import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.HashSet;
-import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.zip.ZipEntry;
@@ -39,6 +37,9 @@ import a.a.a.lC;
 import a.a.a.nB;
 import a.a.a.oB;
 import a.a.a.wq;
+import dev.pranav.filepicker.FilePickerCallback;
+import dev.pranav.filepicker.FilePickerDialogFragment;
+import dev.pranav.filepicker.FilePickerOptions;
 import pro.sketchware.activities.main.fragments.projects.ProjectsFragment;
 import pro.sketchware.databinding.ProgressMsgBoxBinding;
 import pro.sketchware.tools.ViewBeanParser;
@@ -60,6 +61,21 @@ public class ASProjectImporter extends AsyncTask<Void, String, Boolean> {
         this.activityRef = new WeakReference<>(activity);
         this.zipUri = zipUri;
         this.fragment = fragment;
+    }
+
+    public static void showPicker(Activity activity, ProjectsFragment fragment) {
+        FilePickerOptions options = new FilePickerOptions();
+        options.setExtensions(new String[]{"zip"});
+        options.setTitle("Select AS Project (.zip)");
+
+        FilePickerCallback callback = new FilePickerCallback() {
+            @Override
+            public void onFileSelected(File file) {
+                new ASProjectImporter(activity, Uri.fromFile(file), fragment).execute();
+            }
+        };
+
+        new FilePickerDialogFragment(options, callback).show(fragment.getChildFragmentManager(), "filePicker");
     }
 
     @Override
@@ -174,8 +190,8 @@ public class ASProjectImporter extends AsyncTask<Void, String, Boolean> {
                         if (xml.getName().endsWith(".xml")) {
                             String rawName = xml.getName().replace(".xml", "");
                             
-                            boolean isActivity = rawName.startsWith("activity_");
-                            String fileName = isActivity ? rawName.replace("activity_", "") : rawName;
+                            boolean isActivity = rawName.equals("main") || rawName.startsWith("activity_");
+                            String fileName = rawName.startsWith("activity_") ? rawName.replace("activity_", "") : rawName;
                             
                             ViewBeanParser parser = new ViewBeanParser(xml);
                             parser.setSkipRoot(true);
@@ -343,7 +359,8 @@ public class ASProjectImporter extends AsyncTask<Void, String, Boolean> {
     }
 
     private String getJavaName(String xmlName) {
-        String[] parts = xmlName.split("_");
+        if (xmlName.equals("main")) return "MainActivity.java";
+        String[] parts = xmlName.replace("activity_", "").split("_");
         StringBuilder javaName = new StringBuilder();
         for (String part : parts) {
             if (!part.isEmpty()) {
@@ -364,25 +381,26 @@ public class ASProjectImporter extends AsyncTask<Void, String, Boolean> {
             }
         } else if (source.getName().endsWith(".java") || source.getName().endsWith(".kt")) {
             boolean isActivityMatch = false;
-            String javaName = "";
+            String expectedJavaName = "";
             for (String layout : activityLayouts) {
-                if (source.getName().equals(getJavaName(layout))) {
+                String potentialName = getJavaName(layout);
+                if (source.getName().equals(potentialName)) {
                     isActivityMatch = true;
-                    javaName = getJavaName(layout);
+                    expectedJavaName = potentialName; 
                     break;
                 }
             }
 
             if (isActivityMatch) {
                 String javaContent = FileUtil.readFile(source.getAbsolutePath());
-                // Strip package and import lines to keep block clean
                 javaContent = javaContent.replaceAll("package\\s+[^;]+;", "").replaceAll("import\\s+[^;]+;", "").trim();
                 
                 String escapedContent = javaContent.replace("\\", "\\\\").replace("\"", "\\\"").replace("\n", "\\n").replace("\r", "");
-                String assdJson = "{\"color\":-12435108,\"id\":\"11\",\"nextBlock\":-1,\"opCode\":\"addCustomVariable\",\"parameters\":[\"" + escapedContent + "\"],\"spec\":\"Custom Variable Block: add variable %s\",\"subStack1\":-1,\"subStack2\":-1,\"type\":\" \",\"typeName\":\"\"}\n";
                 
-                logicStr.append("@").append(javaName).append("_onCreate_initializeLogic\n");
-                logicStr.append(assdJson);
+                String asdJson = "{\"color\":-10703429,\"id\":\"11\",\"nextBlock\":-1,\"opCode\":\"addSourceDirectly\",\"parameters\":[\"" + escapedContent + "\"],\"spec\":\"add source directly %s.str\",\"subStack1\":-1,\"subStack2\":-1,\"type\":\" \",\"typeName\":\"\"}\n";
+                
+                logicStr.append("@").append(expectedJavaName).append("_onCreate_initializeLogic\n");
+                logicStr.append(asdJson);
             } else {
                 if (!targetMainDir.exists()) targetMainDir.mkdirs();
                 File targetFile = new File(targetMainDir, source.getName());

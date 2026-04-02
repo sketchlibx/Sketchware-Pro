@@ -7,7 +7,9 @@ import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
 import android.view.Window;
-import android.view.WindowManager;
+import android.widget.ImageView;
+import android.widget.LinearLayout;
+import android.widget.TextView;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
@@ -16,7 +18,6 @@ import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
 import com.besome.sketch.beans.ViewBean;
-import com.besome.sketch.ctrls.ViewIdSpinnerItem;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -44,31 +45,50 @@ public class ViewTreeDrawerDialog extends DialogFragment {
         Window window = getDialog().getWindow();
         if (window != null) {
             window.setLayout(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.MATCH_PARENT);
-            window.setGravity(Gravity.START); // Opens from the left
+            window.setGravity(Gravity.START); // Opens from the left like a real Drawer
             window.setBackgroundDrawableResource(android.R.color.transparent);
-            window.setWindowAnimations(R.style.Animation_Design_BottomSheetDialog); // Replace with suitable slide-in anim if needed
+            window.setWindowAnimations(R.style.Animation_Design_BottomSheetDialog);
         }
     }
 
     @Nullable
     @Override
     public View onCreateView(@NonNull LayoutInflater inflater, @Nullable ViewGroup container, @Nullable Bundle savedInstanceState) {
-        // Simple programmatic RecyclerView setup
-        RecyclerView rv = new RecyclerView(requireContext());
-        rv.setLayoutParams(new ViewGroup.LayoutParams(
-                (int) TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_DIP, 280, getResources().getDisplayMetrics()),
-                ViewGroup.LayoutParams.MATCH_PARENT));
-        
-        TypedValue typedValue = new TypedValue();
-        requireContext().getTheme().resolveAttribute(R.attr.colorSurface, typedValue, true);
-        rv.setBackgroundColor(typedValue.data);
 
+        LinearLayout root = new LinearLayout(requireContext());
+        root.setOrientation(LinearLayout.VERTICAL);
+        root.setLayoutParams(new ViewGroup.LayoutParams(
+                (int) TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_DIP, 320, getResources().getDisplayMetrics()),
+                ViewGroup.LayoutParams.MATCH_PARENT));
+
+        // Use Surface Container Low for Drawer Background (Matches Design Drawer)
+        TypedValue typedValue = new TypedValue();
+        requireContext().getTheme().resolveAttribute(R.attr.colorSurfaceContainerLow, typedValue, true);
+        root.setBackgroundColor(typedValue.data);
+
+        // Add Header Title "Component Tree"
+        TextView header = new TextView(requireContext());
+        header.setText("Component Tree");
+        header.setTextSize(20);
+        header.setTypeface(null, android.graphics.Typeface.BOLD);
+        requireContext().getTheme().resolveAttribute(R.attr.colorOnSurface, typedValue, true);
+        header.setTextColor(typedValue.data);
+        
+        int padding = (int) TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_DIP, 20, getResources().getDisplayMetrics());
+        header.setPadding(padding, padding + 16, padding, padding);
+        root.addView(header);
+
+        RecyclerView rv = new RecyclerView(requireContext());
+        rv.setLayoutParams(new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, 0, 1.0f));
         rv.setLayoutManager(new LinearLayoutManager(getContext()));
+        rv.setClipToPadding(false);
+        rv.setPadding(0, 0, 0, padding);
         
         buildTree();
         rv.setAdapter(new TreeAdapter());
-
-        return rv;
+        
+        root.addView(rv);
+        return root;
     }
 
     private void buildTree() {
@@ -113,28 +133,42 @@ public class ViewTreeDrawerDialog extends DialogFragment {
         @NonNull
         @Override
         public ViewHolder onCreateViewHolder(@NonNull ViewGroup parent, int viewType) {
-            ViewIdSpinnerItem item = new ViewIdSpinnerItem(getContext());
-            item.setLayoutParams(new ViewGroup.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
-            item.setTextSize(R.dimen.text_size_body_small);
-            item.setDropDown(true);
-            return new ViewHolder(item);
+
+            View view = LayoutInflater.from(parent.getContext()).inflate(R.layout.item_view_tree_node, parent, false);
+            return new ViewHolder(view);
         }
 
         @Override
         public void onBindViewHolder(@NonNull ViewHolder holder, int position) {
             TreeNode node = treeNodesList.get(position);
-            ViewIdSpinnerItem viewItem = (ViewIdSpinnerItem) holder.itemView;
             
-            // Setup indentation
-            int paddingPx = (int) TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_DIP, node.depth * 20, getResources().getDisplayMetrics());
+            // Set Titles and Icons
+            holder.tvTitle.setText(node.viewBean.id);
             
-            String displayName = node.depth > 0 ? " └ " + node.viewBean.id : node.viewBean.id;
-            
-            viewItem.a(ViewBean.getViewTypeResId(node.viewBean.type), displayName, false);
-            viewItem.a(false, 0xff404040, 0xff404040);
-            viewItem.setPadding(paddingPx, viewItem.getPaddingTop(), viewItem.getPaddingRight(), viewItem.getPaddingBottom());
+            String typeName = ViewBean.getViewTypeName(node.viewBean.type);
+            // If it's a Custom View or similar, show that information too
+            if (node.viewBean.customView != null && !node.viewBean.customView.isEmpty() && !node.viewBean.customView.equals("none") && !node.viewBean.customView.equals("NONE")) {
+                typeName += " (" + node.viewBean.customView + ")";
+            }
+            holder.tvSubtitle.setText(typeName);
+            holder.imgIcon.setImageResource(ViewBean.getViewTypeResId(node.viewBean.type));
 
-            viewItem.setOnClickListener(v -> {
+            // Setup Indentation based on Depth
+            int paddingBase = (int) TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_DIP, 12, getResources().getDisplayMetrics());
+            int paddingDepth = (int) TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_DIP, node.depth * 22, getResources().getDisplayMetrics());
+            
+            holder.containerLayout.setPadding(paddingBase + paddingDepth, holder.containerLayout.getPaddingTop(), 
+                    holder.containerLayout.getPaddingRight(), holder.containerLayout.getPaddingBottom());
+
+            // Show "└" branch symbol if it's a child element
+            if (node.depth > 0) {
+                holder.tvBranch.setVisibility(View.VISIBLE);
+            } else {
+                holder.tvBranch.setVisibility(View.GONE);
+            }
+
+            // Handle Click
+            holder.itemView.setOnClickListener(v -> {
                 listener.onSelected(node.viewBean.id);
                 dismiss();
             });
@@ -146,8 +180,17 @@ public class ViewTreeDrawerDialog extends DialogFragment {
         }
 
         class ViewHolder extends RecyclerView.ViewHolder {
+            LinearLayout containerLayout;
+            TextView tvBranch, tvTitle, tvSubtitle;
+            ImageView imgIcon;
+
             public ViewHolder(@NonNull View itemView) {
                 super(itemView);
+                containerLayout = itemView.findViewById(R.id.container_layout);
+                tvBranch = itemView.findViewById(R.id.tv_branch);
+                tvTitle = itemView.findViewById(R.id.tv_title);
+                tvSubtitle = itemView.findViewById(R.id.tv_subtitle);
+                imgIcon = itemView.findViewById(R.id.img_icon);
             }
         }
     }

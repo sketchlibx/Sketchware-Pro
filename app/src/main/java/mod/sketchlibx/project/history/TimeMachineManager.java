@@ -7,6 +7,7 @@ import java.util.Arrays;
 import java.util.Date;
 import java.util.Locale;
 
+import mod.hey.studios.project.ProjectSettings;
 import mod.hey.studios.project.backup.BackupFactory;
 import pro.sketchware.utility.FileUtil;
 
@@ -16,6 +17,12 @@ public class TimeMachineManager {
     private static final int MAX_SNAPSHOTS = 20;
 
     public static void takeSnapshot(String sc_id) {
+    
+        ProjectSettings settings = new ProjectSettings(sc_id);
+        if (!settings.getValue("enable_version_history", "false").equals("true")) {
+            return; // Silently abort, user opted out
+        }
+
         new Thread(() -> {
             try {
                 File historyFolder = new File(Environment.getExternalStorageDirectory(), HISTORY_DIR + sc_id);
@@ -40,17 +47,17 @@ public class TimeMachineManager {
                 File[] existingSnaps = historyFolder.listFiles((dir, name) -> name.endsWith(".zip"));
                 if (existingSnaps != null && existingSnaps.length > 1) {
                     Arrays.sort(existingSnaps, (f1, f2) -> Long.compare(f2.lastModified(), f1.lastModified()));
-                    File newest = existingSnaps[0]; // The one we just created
-                    File previous = existingSnaps[1]; // The one right before it
+                    File newest = existingSnaps[0];
+                    File previous = existingSnaps[1];
 
-                    // If file sizes are exactly identical, chances are no changes were made (logic/xml bytes are same).
+                    // Prevent duplicate saving if file size matches
                     if (newest.length() == previous.length()) {
                         newest.delete();
-                        return; // Exit without saving
+                        return;
                     }
                 }
 
-                // Auto-cleanup: Keep only the latest 20 snapshots
+                // Cleanup oldest snapshots to avoid filling user storage
                 File[] files = historyFolder.listFiles((dir, name) -> name.endsWith(".zip"));
                 if (files != null && files.length > MAX_SNAPSHOTS) {
                     Arrays.sort(files, (f1, f2) -> Long.compare(f1.lastModified(), f2.lastModified()));
