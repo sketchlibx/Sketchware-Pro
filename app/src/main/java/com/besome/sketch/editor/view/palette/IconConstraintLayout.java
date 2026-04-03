@@ -14,7 +14,7 @@ public class IconConstraintLayout extends IconBase {
     }
 
     private void initialize() {
-        setWidgetImage(R.drawable.*ic_mtrl_view_constraint);
+        setWidgetImage(R.drawable.ic_mtrl_view_constraint);
         setWidgetName("ConstraintLayout");
     }
 
