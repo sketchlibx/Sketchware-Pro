@@ -816,15 +816,17 @@ public class DesignActivity extends BaseAppCompatActivity implements View.OnClic
         if (projectFile == null) return;
         k();
         new Thread(() -> {
-            String javaFileName = projectFile.getJavaName();
-            if (javaFileName == null || javaFileName.isEmpty()) {
-                javaFileName = currentJavaFileName;
+            String tempJavaFileName = projectFile.getJavaName();
+            if (tempJavaFileName == null || tempJavaFileName.isEmpty()) {
+                tempJavaFileName = currentJavaFileName;
             }
             
-            if (javaFileName == null || javaFileName.isEmpty()) {
+            if (tempJavaFileName == null || tempJavaFileName.isEmpty()) {
                 runOnUiThread(() -> { h(); SketchwareUtil.toastError("No Java file selected"); });
                 return;
             }
+
+            final String javaFileName = tempJavaFileName;
 
             String customJavaDir = FileUtil.getExternalStorageDir() + "/.sketchware/data/" + sc_id + "/custom_java/";
             FileUtil.makeDir(customJavaDir);

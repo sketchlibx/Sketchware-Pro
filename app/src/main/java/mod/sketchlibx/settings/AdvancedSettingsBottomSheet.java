@@ -1,6 +1,5 @@
 package mod.sketchlibx.settings;
 
-import android.app.AlertDialog;
 import android.content.Intent;
 import android.os.Bundle;
 import android.view.LayoutInflater;
@@ -12,6 +11,7 @@ import android.widget.Toast;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
+import androidx.appcompat.app.AlertDialog;
 
 import com.besome.sketch.design.DesignActivity;
 import com.google.android.material.bottomsheet.BottomSheetDialogFragment;
@@ -50,9 +50,11 @@ public class AdvancedSettingsBottomSheet extends BottomSheetDialogFragment {
         CheckBox cbForceAndroidX = root.findViewById(R.id.cb_force_androidx);
         CheckBox cbKotlinConversion = root.findViewById(R.id.cb_java_to_kotlin);
         
+        // Load existing settings
         cbForceAndroidX.setChecked(projectSettings.getValue(ProjectSettings.SETTING_FORCE_ANDROIDX, ProjectSettings.SETTING_GENERIC_VALUE_FALSE).equals("true"));
         cbKotlinConversion.setChecked(projectSettings.getValue(ProjectSettings.SETTING_JAVA_TO_KOTLIN, ProjectSettings.SETTING_GENERIC_VALUE_FALSE).equals("true"));
 
+        // Save on click
         cbForceAndroidX.setOnCheckedChangeListener((buttonView, isChecked) -> projectSettings.setValue(ProjectSettings.SETTING_FORCE_ANDROIDX, isChecked ? "true" : "false"));
         cbKotlinConversion.setOnCheckedChangeListener((buttonView, isChecked) -> projectSettings.setValue(ProjectSettings.SETTING_JAVA_TO_KOTLIN, isChecked ? "true" : "false"));
 
