@@ -64,13 +64,15 @@ public class BackupFactory {
     boolean backupCustomBlocks;
     String error = "";
     boolean restoreSuccess = true;
+    
+    private String customBackupDir = null;
 
-    /**
-     * @param sc_id For backing up, the target project's ID,
-     * for restoring, the new project ID
-     */
     public BackupFactory(String sc_id) {
         this.sc_id = sc_id;
+    }
+
+    public void setCustomBackupDir(String dir) {
+        this.customBackupDir = dir;
     }
 
     public static String getBackupDir() {
@@ -127,14 +129,11 @@ public class BackupFactory {
 
         ArrayList<String> list = new ArrayList<>();
         FileUtil.listDir(myscList.getAbsolutePath(), list);
-        //noinspection Java8ListSort
         Collections.sort(list, String.CASE_INSENSITIVE_ORDER);
 
         int id = list.isEmpty() ? 600 : Integer.parseInt(new File(list.get(list.size() - 1)).getName());
         return String.valueOf(id + 1);
     }
-
-    /************************ UTILITIES ************************/
 
     public static boolean unzip(File zipFile, File destinationDir) {
         int DEFAULT_BUFFER = 2048;
@@ -155,7 +154,7 @@ public class BackupFactory {
                         byte[] data = new byte[DEFAULT_BUFFER];
                         try (FileOutputStream fos = new FileOutputStream(destFile)) {
                             try (BufferedOutputStream dest = new BufferedOutputStream(fos, DEFAULT_BUFFER)) {
-                                while ((currentByte = is.read(data, 0, DEFAULT_BUFFER)) != -1 /*EOF*/) {
+                                while ((currentByte = is.read(data, 0, DEFAULT_BUFFER)) != -1) {
                                     dest.write(data, 0, currentByte);
                                 }
                                 dest.flush();
@@ -234,7 +233,6 @@ public class BackupFactory {
                 }
             }
         } else {
-            //skip .nomedia files
             if (source.getName().equals(".nomedia")) return;
 
             try (InputStream in = new FileInputStream(source);
@@ -267,12 +265,6 @@ public class BackupFactory {
         return false;
     }
 
-    /************************ BACKUP ************************/
-
-    /**
-     * @param context Can be null if called from a background Worker/Service
-     * @param project_name Name of the project
-     */
     public void backup(Context context, String project_name) {
         String customFileName = ConfigActivity.getBackupFileName();
 
@@ -300,13 +292,12 @@ public class BackupFactory {
             }
             finalFileName = projectNameOnly + " v" + versionName + " (" + pkgName + ", " + versionCode + ") " + getFormattedDateFrom("yyyy-M-dd'T'HHmmss");
         }
-        createBackupsFolder();
+        
+        String backupDirToUse = customBackupDir != null ? customBackupDir : getBackupDir();
+        if (customBackupDir == null) createBackupsFolder();
 
-        // Init temporary backup folder
-        File outFolder = new File(getBackupDir(), project_name + "_temp");
-
-        // Init output zip file
-        File outZip = new File(getBackupDir() + File.separator + projectNameOnly, finalFileName +
+        File outFolder = new File(backupDirToUse, project_name + "_temp");
+        File outZip = new File(backupDirToUse + (customBackupDir == null ? File.separator + projectNameOnly : ""), finalFileName +
                 (project_name.contains("_d") ? project_name.replace(projectNameOnly, "") : "") + "." + EXTENSION);
 
         if (outZip.exists()) {
@@ -319,7 +310,9 @@ public class BackupFactory {
         }
 
         FileUtil.makeDir(outFolder.getAbsolutePath());
-        FileUtil.makeDir(new File(getBackupDir() + File.separator + projectNameOnly).getAbsolutePath());
+        if (customBackupDir == null) {
+            FileUtil.makeDir(new File(backupDirToUse + File.separator + projectNameOnly).getAbsolutePath());
+        }
 
         File dataF = new File(outFolder, "data");
         FileUtil.makeDir(dataF.getAbsolutePath());
@@ -357,7 +350,6 @@ public class BackupFactory {
             }
         }
 
-        // 🚀 BUG FIX: Prevent NullPointerException if context is null (during background auto-backup)
         if (backupCustomBlocks && context != null) {
             CustomBlocksManager cbm = new CustomBlocksManager(context, sc_id);
 
@@ -383,14 +375,13 @@ public class BackupFactory {
 
         try {
             zipFolder(outFolder, outZip);
+            outPath = outZip;
         } catch (Exception e) {
             error = Log.getStackTraceString(e);
             outPath = null;
-            return;
+        } finally {
+            FileUtil.deleteFile(outFolder.getAbsolutePath());
         }
-
-        FileUtil.deleteFile(outFolder.getAbsolutePath());
-        outPath = outZip;
     }
 
     private String getFormattedDateFrom(String format) {
@@ -408,8 +399,6 @@ public class BackupFactory {
     public void setBackupCustomBlocks(boolean b) {
         backupCustomBlocks = b;
     }
-
-    /************************ RESTORE ************************/
 
     public void restore(File swbPath) {
         String name = swbPath.getName();
@@ -491,8 +480,6 @@ public class BackupFactory {
     public boolean isRestoreSuccess() {
         return restoreSuccess;
     }
-
-    /************************ SW METHODS ************************/
 
     private void createBackupsFolder() {
         String backupsPath = getBackupDir();

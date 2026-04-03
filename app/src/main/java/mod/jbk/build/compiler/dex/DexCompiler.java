@@ -45,6 +45,7 @@ public class DexCompiler {
                 .setMode(CompilationMode.RELEASE)
                 .setIntermediate(true)
                 .setMinApiLevel(minApiLevel)
+                .setDisableDesugaring(false) 
                 .addLibraryFiles(libraryFiles)
                 .setOutput(new File(builder.yq.binDirectoryPath, "dex").toPath(), OutputMode.DexIndexed)
                 .addProgramFiles(programFiles)

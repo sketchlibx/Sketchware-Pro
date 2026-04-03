@@ -37,7 +37,7 @@ public class ProjectSearchEngine {
             String javaName = file.getJavaName();
             String targetFileName = xmlName.isEmpty() ? javaName : xmlName;
 
-            // 1. SCAN VIEWS (XML UI)
+            // 1. SCAN REGULAR VIEWS (XML UI)
             ArrayList<ViewBean> views = jC.a(sc_id).d(targetFileName);
             if (views != null) {
                 for (ViewBean view : views) {
@@ -51,8 +51,22 @@ public class ProjectSearchEngine {
                 }
             }
 
-            // 2. SCAN COMPONENTS (Fixed method 'e' based on your compiler logs)
-            ArrayList<ComponentBean> components = jC.a(sc_id).e(targetFileName);
+            // SCAN DRAWER VIEWS
+            ArrayList<ViewBean> drawerViews = jC.a(sc_id).d("_drawer_" + xmlName);
+            if (drawerViews != null) {
+                for (ViewBean view : drawerViews) {
+                    if (view.id.toLowerCase().contains(q) || 
+                       (view.text != null && view.text.text != null && view.text.text.toLowerCase().contains(q))) {
+                        results.add(new SearchResult(
+                                targetFileName, "View", 
+                                view.id + " (Drawer " + ViewBean.getViewTypeName(view.type) + ")", 
+                                "Text/Hint: " + (view.text != null ? view.text.text : "N/A"), 0, view.id, null));
+                    }
+                }
+            }
+
+            // 2. SCAN COMPONENTS
+            ArrayList<ComponentBean> components = jC.a(sc_id).e(javaName);
             if (components != null) {
                 for (ComponentBean comp : components) {
                     if (comp.componentId.toLowerCase().contains(q)) {
@@ -64,8 +78,8 @@ public class ProjectSearchEngine {
                 }
             }
 
-            // 3. SCAN VARIABLES & LISTS (Fixed method 'k' & 'j' based on your compiler logs)
-            ArrayList<Pair<Integer, String>> vars = jC.a(sc_id).k(targetFileName);
+            // 3. SCAN VARIABLES & LISTS
+            ArrayList<Pair<Integer, String>> vars = jC.a(sc_id).k(javaName);
             if (vars != null) {
                 for (Pair<Integer, String> var : vars) {
                     if (var.second.toLowerCase().contains(q)) {
@@ -77,7 +91,7 @@ public class ProjectSearchEngine {
                 }
             }
             
-            ArrayList<Pair<Integer, String>> lists = jC.a(sc_id).j(targetFileName);
+            ArrayList<Pair<Integer, String>> lists = jC.a(sc_id).j(javaName);
             if (lists != null) {
                 for (Pair<Integer, String> lst : lists) {
                     if (lst.second.toLowerCase().contains(q)) {
@@ -93,11 +107,10 @@ public class ProjectSearchEngine {
             HashMap<String, ArrayList<BlockBean>> events = jC.a(sc_id).b(javaName);
             if (events != null) {
                 for (Map.Entry<String, ArrayList<BlockBean>> entry : events.entrySet()) {
-                    String eventKey = entry.getKey(); // e.g. button1_onClick or onCreate_initializeLogic
+                    String eventKey = entry.getKey();
                     String targetId = eventKey;
                     String eventName = "";
                     
-                    // Safely extract targetId and eventName for Deep Linking
                     int lastUnderscore = eventKey.lastIndexOf("_");
                     if (lastUnderscore != -1) {
                         targetId = eventKey.substring(0, lastUnderscore);

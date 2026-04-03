@@ -1,6 +1,8 @@
 package mod.sketchlibx.search;
 
 import android.os.Bundle;
+import android.os.Handler;
+import android.os.Looper;
 import android.text.Editable;
 import android.text.TextWatcher;
 import android.view.LayoutInflater;
@@ -35,6 +37,12 @@ public class GlobalSearchDialog extends BottomSheetDialogFragment {
     public GlobalSearchDialog(String sc_id, DesignActivity activity) {
         this.sc_id = sc_id;
         this.activity = activity;
+    }
+    
+    @Override
+    public void onCreate(@Nullable Bundle savedInstanceState) {
+        super.onCreate(savedInstanceState);
+        setStyle(STYLE_NORMAL, R.style.Theme_MaterialComponents_BottomSheetDialog);
     }
 
     @Nullable
@@ -117,8 +125,9 @@ public class GlobalSearchDialog extends BottomSheetDialogFragment {
 
             holder.itemView.setOnClickListener(v -> {
                 dismiss();
-                // full result to handle deep linking
-                activity.handleSearchResult(result);
+                new Handler(Looper.getMainLooper()).postDelayed(() -> {
+                    activity.handleSearchResult(result);
+                }, 300);
             });
         }
 

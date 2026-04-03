@@ -27,6 +27,7 @@ import a.a.a.mB;
 import a.a.a.pu;
 import pro.sketchware.R;
 import pro.sketchware.databinding.ManageImageBinding;
+import pro.sketchware.utility.SketchwareUtil;
 
 public class ManageImageActivity extends BaseAppCompatActivity implements ViewPager.OnPageChangeListener {
     private String sc_id;
@@ -40,12 +41,10 @@ public class ManageImageActivity extends BaseAppCompatActivity implements ViewPa
     }
 
     @Override
-    public void onPageScrollStateChanged(int state) {
-    }
+    public void onPageScrollStateChanged(int state) {}
 
     @Override
-    public void onPageScrolled(int position, float positionOffset, int positionOffsetPixels) {
-    }
+    public void onPageScrolled(int position, float positionOffset, int positionOffsetPixels) {}
 
     public void f(int i) {
         if (binding != null && binding.viewPager != null) {
@@ -123,32 +122,32 @@ public class ManageImageActivity extends BaseAppCompatActivity implements ViewPa
                 int color = data.getIntExtra("iconColor", 0);
                 String colorHex = data.getStringExtra("iconColorHex");
 
-                // Loop through each selected icon and trick the fragment 
-                // into processing them sequentially without knowing it's a bulk operation!
                 for (int i = 0; i < names.size(); i++) {
-                    Intent singleIntent = new Intent();
-                    singleIntent.putExtra("iconName", names.get(i));
-                    singleIntent.putExtra("iconPath", paths.get(i));
-                    singleIntent.putExtra("iconColor", color);
-                    singleIntent.putExtra("iconColorHex", colorHex);
-
-                    // Dispatch to fragment using the super method so Sketchware's internal requestCode mapping works perfectly
-                    super.onActivityResult(requestCode, resultCode, singleIntent);
+                    final int index = i;
+                    new Handler().postDelayed(() -> {
+                        Intent singleIntent = new Intent();
+                        singleIntent.putExtra("iconName", names.get(index));
+                        singleIntent.putExtra("iconPath", paths.get(index));
+                        singleIntent.putExtra("iconColor", color);
+                        singleIntent.putExtra("iconColorHex", colorHex);
+                        super.onActivityResult(requestCode, resultCode, singleIntent);
+                        
+                        if (index == names.size() - 1) {
+                            SketchwareUtil.toast("Imported " + names.size() + " icons successfully!");
+                        }
+                    }, i * 300L); // 300ms delay per icon
                 }
-                return; // handled the bulk array, exit here.
+                return;
             }
         }
         
-        // Fallback for single items and other activities (like cropping, gallery picker, etc.)
         super.onActivityResult(requestCode, resultCode, data);
     }
 
     @Override
     public void onResume() {
         super.onResume();
-        if (!super.isStoragePermissionGranted()) {
-            finish();
-        }
+        if (!super.isStoragePermissionGranted()) finish();
     }
 
     @Override
@@ -164,14 +163,10 @@ public class ManageImageActivity extends BaseAppCompatActivity implements ViewPa
 
         if (position == 0) {
             showFabWithAnimation();
-            if (collectionImagesFragment != null) {
-                collectionImagesFragment.unselectAll();
-            }
+            if (collectionImagesFragment != null) collectionImagesFragment.unselectAll();
         } else {
             hideFabWithAnimation();
-            if (projectImagesFragment != null) {
-                projectImagesFragment.a(false);
-            }
+            if (projectImagesFragment != null) projectImagesFragment.a(false);
         }
     }
 
@@ -239,30 +234,21 @@ public class ManageImageActivity extends BaseAppCompatActivity implements ViewPa
         }
 
         @Override
-        public int getCount() {
-            return 2;
-        }
+        public int getCount() { return 2; }
 
         @Override
         @NonNull
         public Object instantiateItem(@NonNull ViewGroup container, int position) {
             Fragment fragment = (Fragment) super.instantiateItem(container, position);
-            if (position == 0) {
-                projectImagesFragment = (pu) fragment;
-            } else {
-                collectionImagesFragment = (fu) fragment;
-            }
+            if (position == 0) projectImagesFragment = (pu) fragment;
+            else collectionImagesFragment = (fu) fragment;
             return fragment;
         }
 
         @Override
         @NonNull
         public Fragment getItem(int position) {
-            if (position == 0) {
-                return new pu();
-            } else {
-                return new fu();
-            }
+            return position == 0 ? new pu() : new fu();
         }
 
         @Override

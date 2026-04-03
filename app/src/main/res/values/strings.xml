@@ -1365,6 +1365,7 @@ Do you want to continue?"</string>
     <string name="event_onpostcreated">On activity start-up complete</string>
     <string name="event_onprogresschanged">onProgressChanged</string>
     <string name="event_onresetpasswordemailsent">onResetPasswordEmailSent</string>
+    <string name="event_onrequestpermission">On activity permissions result</string>
     <string name="event_onresume">On activity resume</string>
     <string name="event_onsensorchanged">onSensorChanged</string>
     <string name="event_onsigninusercomplete">onSignInUserComplete</string>
@@ -1760,6 +1761,7 @@ ACTION_VIEW
     <string name="publish_message_dialog_invalid_json">The json file is invalid. Please double check the file</string>
     <string name="root_spec_common_define">Define</string>
     <string name="root_spec_common_when">When</string>
+    <string name="root_spec_on_request_permission_head">On activity permissions result</string>
     <string name="root_spec_initialize_head">On activity create</string>
     <string name="root_spec_initialize_tail" />
     <string name="root_spec_on_ad_closed_head">onAdClosed</string>

@@ -24,6 +24,8 @@ import android.widget.RadioGroup;
 
 import androidx.annotation.NonNull;
 
+import com.google.android.material.bottomsheet.BottomSheetBehavior;
+import com.google.android.material.bottomsheet.BottomSheetDialog;
 import com.google.android.material.bottomsheet.BottomSheetDialogFragment;
 
 import mod.hey.studios.build.BuildSettings;
@@ -55,7 +57,6 @@ public class BuildSettingsBottomSheet extends BottomSheetDialogFragment {
     }
 
     public static String[] getAvailableJavaVersions() {
-        // FEATURE: Added 17 to available versions
         return new String[]{
             SETTING_JAVA_VERSION_1_7, 
             SETTING_JAVA_VERSION_1_8, 
@@ -75,10 +76,20 @@ public class BuildSettingsBottomSheet extends BottomSheetDialogFragment {
     @Override
     public void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-
         Bundle arguments = getArguments();
         projectSettings = new BuildSettings(arguments.getString("sc_id"));
         views = new View[totalViews];
+    }
+    
+    @Override
+    public void onStart() {
+        super.onStart();
+        View bottomSheet = getDialog().findViewById(com.google.android.material.R.id.design_bottom_sheet);
+        if (bottomSheet != null) {
+            bottomSheet.getLayoutParams().height = ViewGroup.LayoutParams.MATCH_PARENT;
+            BottomSheetBehavior.from(bottomSheet).setState(BottomSheetBehavior.STATE_EXPANDED);
+            BottomSheetBehavior.from(bottomSheet).setSkipCollapsed(true);
+        }
     }
 
     @Override
@@ -100,10 +111,7 @@ public class BuildSettingsBottomSheet extends BottomSheetDialogFragment {
         binding.tilAndroidJar.getEditText().setText(projectSettings.getValue(SETTING_ANDROID_JAR_PATH, ""));
         binding.tilClasspath.getEditText().setText(projectSettings.getValue(SETTING_CLASSPATH, ""));
 
-        //  FEATURE: Brought "Dx" back to UI, but default is D8
         setRadioGroupOptions(binding.rgDexer, new String[]{"Dx", "D8"}, SETTING_DEXER, "D8");
-        
-        // FEATURE: Default Java version changed to 1.8 for modern compatibility
         setRadioGroupOptions(binding.rgJavaVersion, getAvailableJavaVersions(), SETTING_JAVA_VERSION, "1.8");
 
         setCheckboxValue(binding.cbNoWarnings, SETTING_NO_WARNINGS, true);

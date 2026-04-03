@@ -99,7 +99,9 @@ public class ViewPropertyItems extends LinearLayout implements Kw, View.OnClickL
             case "property_layout_gravity" -> b(property, bean.layout.layoutGravity);
             case "property_weight" -> b(property, String.valueOf(bean.layout.weight));
             case "property_text" -> b(property, bean.text.text);
-            case "property_text_size" -> c(property, bean.text.textSize);
+            
+            case "property_text_size" -> b(property, String.valueOf(bean.text.textSize));
+            
             case "property_text_style" -> c(property, bean.text.textType);
             case "property_text_color" -> r(property, bean.text.resTextColor, bean.text.textColor);
             case "property_hint" -> b(property, bean.text.hint);
@@ -975,7 +977,6 @@ public class ViewPropertyItems extends LinearLayout implements Kw, View.OnClickL
             }
         }
     }
-
 
     public void setProjectSettings(ProjectSettings settings) {
         this.settings = settings;

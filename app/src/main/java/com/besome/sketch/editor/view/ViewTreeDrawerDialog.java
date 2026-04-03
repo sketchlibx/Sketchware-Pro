@@ -10,6 +10,7 @@ import android.view.Window;
 import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.TextView;
+import android.widget.HorizontalScrollView;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
@@ -18,6 +19,8 @@ import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
 import com.besome.sketch.beans.ViewBean;
+import com.google.android.material.shape.MaterialShapeDrawable;
+import com.google.android.material.shape.ShapeAppearanceModel;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -66,7 +69,15 @@ public class ViewTreeDrawerDialog extends DialogFragment {
 
         TypedValue typedValue = new TypedValue();
         requireContext().getTheme().resolveAttribute(R.attr.colorSurfaceContainerLow, typedValue, true);
-        root.setBackgroundColor(typedValue.data);
+        
+        ShapeAppearanceModel shape = ShapeAppearanceModel.builder()
+                .setTopRightCornerSize(TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_DIP, 24, getResources().getDisplayMetrics()))
+                .setBottomRightCornerSize(TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_DIP, 24, getResources().getDisplayMetrics()))
+                .build();
+        MaterialShapeDrawable background = new MaterialShapeDrawable(shape);
+        background.setFillColor(android.content.res.ColorStateList.valueOf(typedValue.data));
+        background.setElevation(TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_DIP, 3, getResources().getDisplayMetrics()));
+        root.setBackground(background);
 
         // Header: "Component Tree"
         TextView header = new TextView(requireContext());
@@ -86,9 +97,12 @@ public class ViewTreeDrawerDialog extends DialogFragment {
         divider.setBackgroundColor(typedValue.data);
         root.addView(divider, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, (int) TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_DIP, 1, getResources().getDisplayMetrics())));
 
-        // RecyclerView
+        HorizontalScrollView hsv = new HorizontalScrollView(requireContext());
+        hsv.setLayoutParams(new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, 0, 1.0f));
+        hsv.setFillViewport(true);
+
         RecyclerView rv = new RecyclerView(requireContext());
-        rv.setLayoutParams(new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, 0, 1.0f));
+        rv.setLayoutParams(new ViewGroup.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.MATCH_PARENT));
         rv.setLayoutManager(new LinearLayoutManager(getContext()));
         rv.setClipToPadding(false);
         rv.setPadding(0, 0, 0, padding);
@@ -99,7 +113,8 @@ public class ViewTreeDrawerDialog extends DialogFragment {
         adapter = new TreeAdapter();
         rv.setAdapter(adapter);
         
-        root.addView(rv);
+        hsv.addView(rv);
+        root.addView(hsv);
         return root;
     }
 
@@ -107,7 +122,6 @@ public class ViewTreeDrawerDialog extends DialogFragment {
         HashMap<String, List<ViewBean>> childrenMap = new HashMap<>();
         List<ViewBean> roots = new ArrayList<>();
 
-        // Group children by their parent's ID
         for (ViewBean bean : currentViews) {
             if (bean.parent == null || bean.parent.equals("root") || bean.parent.isEmpty()) {
                 roots.add(bean);
@@ -123,7 +137,6 @@ public class ViewTreeDrawerDialog extends DialogFragment {
 
     private TreeNode createNode(ViewBean view, HashMap<String, List<ViewBean>> childrenMap, int depth) {
         TreeNode node = new TreeNode(view, depth);
-        // By default, expand everything
         node.isExpanded = true; 
 
         List<ViewBean> children = childrenMap.get(view.id);
@@ -135,7 +148,6 @@ public class ViewTreeDrawerDialog extends DialogFragment {
         return node;
     }
 
-    // 🔥 3. Flattens the tree into a list for the RecyclerView based on expanded state
     private void refreshDisplayList() {
         displayNodes.clear();
         for (TreeNode root : rootNodes) {
@@ -152,7 +164,6 @@ public class ViewTreeDrawerDialog extends DialogFragment {
         }
     }
 
-    // Tree Node Data Class
     private static class TreeNode {
         ViewBean viewBean;
         int depth;
@@ -169,7 +180,6 @@ public class ViewTreeDrawerDialog extends DialogFragment {
         }
     }
 
-    // RecyclerView Adapter
     private class TreeAdapter extends RecyclerView.Adapter<TreeAdapter.ViewHolder> {
 
         @NonNull
@@ -206,9 +216,7 @@ public class ViewTreeDrawerDialog extends DialogFragment {
 
             holder.imgExpand.setOnClickListener(v -> {
                 node.isExpanded = !node.isExpanded;
-                
                 holder.imgExpand.animate().rotation(node.isExpanded ? 90f : 0f).setDuration(200).start();
-                
                 refreshDisplayList();
                 notifyDataSetChanged();
             });

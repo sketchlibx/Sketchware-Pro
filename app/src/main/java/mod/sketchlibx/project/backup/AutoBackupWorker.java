@@ -1,11 +1,13 @@
 package mod.sketchlibx.project.backup;
 
-import android.app.Notification;
 import android.app.NotificationChannel;
 import android.app.NotificationManager;
 import android.content.Context;
 import android.content.SharedPreferences;
+import android.net.ConnectivityManager;
+import android.net.NetworkInfo;
 import android.os.Build;
+import android.os.Environment;
 import android.util.Log;
 
 import androidx.annotation.NonNull;
@@ -25,7 +27,7 @@ import java.util.Set;
 
 import a.a.a.lC;
 import mod.hey.studios.project.backup.BackupFactory;
-import pro.sketchware.R;
+import pro.sketchware.utility.FileUtil;
 
 public class AutoBackupWorker extends Worker {
 
@@ -46,6 +48,23 @@ public class AutoBackupWorker extends Worker {
     public Result doWork() {
         Context context = getApplicationContext();
         
+        ConnectivityManager cm = (ConnectivityManager) context.getSystemService(Context.CONNECTIVITY_SERVICE);
+        NetworkInfo netInfo = cm.getActiveNetworkInfo();
+        if (netInfo == null || !netInfo.isConnected() || !netInfo.isAvailable()) {
+            Log.e(TAG, "No active internet connection. Retrying later.");
+            return Result.retry();
+        }
+
+        SharedPreferences prefs = context.getSharedPreferences("cloud_backup_prefs", Context.MODE_PRIVATE);
+        long lastBackupTime = prefs.getLong("last_backup_time", 0);
+        String frequency = prefs.getString("backup_frequency", "Weekly");
+        
+        long intervalMs = frequency.equals("Daily") ? 24L * 60 * 60 * 1000 : 7L * 24 * 60 * 60 * 1000;
+        if (System.currentTimeMillis() - lastBackupTime < intervalMs) {
+            Log.d(TAG, "Backup skipped. Required interval has not passed yet.");
+            return Result.success(); // Say success so WorkManager doesn't retry immediately
+        }
+        
         GoogleSignInAccount account = GoogleSignIn.getLastSignedInAccount(context);
         if (account == null) {
             Log.e(TAG, "User not signed in. Cannot perform cloud backup.");
@@ -59,13 +78,10 @@ public class AutoBackupWorker extends Worker {
             return Result.success();
         }
 
-        SharedPreferences prefs = context.getSharedPreferences("cloud_backup_prefs", Context.MODE_PRIVATE);
         Set<String> selectedScIds = prefs.getStringSet("auto_backup_sc_ids", new HashSet<>());
-
-        // Only backup projects that user selected for auto backup
         ArrayList<HashMap<String, Object>> projectsToBackup = new ArrayList<>();
         if (selectedScIds.isEmpty()) {
-            projectsToBackup.addAll(projects); // Backup all if no specific selection
+            projectsToBackup.addAll(projects);
         } else {
             for (HashMap<String, Object> project : projects) {
                 if (selectedScIds.contains((String) project.get("sc_id"))) {
@@ -76,6 +92,9 @@ public class AutoBackupWorker extends Worker {
 
         int total = projectsToBackup.size();
         if (total == 0) return Result.success();
+
+        String hiddenCloudBackupDir = Environment.getExternalStorageDirectory().getAbsolutePath() + "/.sketchware/.cloudbackup";
+        FileUtil.makeDir(hiddenCloudBackupDir);
 
         boolean allSuccess = true;
         for (int i = 0; i < total; i++) {
@@ -90,6 +109,7 @@ public class AutoBackupWorker extends Worker {
             BackupFactory backupFactory = new BackupFactory(scId);
             backupFactory.setBackupLocalLibs(true);
             backupFactory.setBackupCustomBlocks(true);
+            backupFactory.setCustomBackupDir(hiddenCloudBackupDir); // Use hidden cloud backup folder
             
             backupFactory.backup(null, projectName);
             File swbFile = backupFactory.getOutFile();
@@ -104,6 +124,13 @@ public class AutoBackupWorker extends Worker {
             } else {
                 allSuccess = false;
             }
+        }
+
+        // Clean up hidden cloud backup folder after sync
+        FileUtil.deleteFile(hiddenCloudBackupDir);
+
+        if (allSuccess) {
+            prefs.edit().putLong("last_backup_time", System.currentTimeMillis()).apply();
         }
 
         updateNotification("Backup Complete!", total, total);
