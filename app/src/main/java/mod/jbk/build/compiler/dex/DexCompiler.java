@@ -43,9 +43,9 @@ public class DexCompiler {
 
         D8.run(D8Command.builder()
                 .setMode(CompilationMode.RELEASE)
-                .setIntermediate(true)
+                .setIntermediate(false) // Set to false to force final DEX generation
                 .setMinApiLevel(minApiLevel)
-                .setDisableDesugaring(false) 
+                .setDisableDesugaring(false) // Must be false for Java 11/17
                 .addLibraryFiles(libraryFiles)
                 .setOutput(new File(builder.yq.binDirectoryPath, "dex").toPath(), OutputMode.DexIndexed)
                 .addProgramFiles(programFiles)

@@ -5,6 +5,7 @@ import android.content.Context;
 import android.content.Intent;
 import android.os.Bundle;
 import android.os.Handler;
+import android.os.Looper;
 import android.view.View;
 import android.view.ViewGroup;
 
@@ -112,6 +113,25 @@ public class ManageImageActivity extends BaseAppCompatActivity implements ViewPa
         binding.fab.show();
     }
 
+    private void processImportQueue(int index, ArrayList<String> names, ArrayList<String> paths, int color, String colorHex, int requestCode, int resultCode) {
+        if (index >= names.size()) {
+            SketchwareUtil.toast("Imported " + names.size() + " icons successfully!");
+            return;
+        }
+
+        Intent singleIntent = new Intent();
+        singleIntent.putExtra("iconName", names.get(index));
+        singleIntent.putExtra("iconPath", paths.get(index));
+        singleIntent.putExtra("iconColor", color);
+        singleIntent.putExtra("iconColorHex", colorHex);
+        
+        super.onActivityResult(requestCode, resultCode, singleIntent);
+
+        // Queue the next item sequentially after a short UI delay to prevent intent overrides
+        new Handler(Looper.getMainLooper()).postDelayed(() -> 
+            processImportQueue(index + 1, names, paths, color, colorHex, requestCode, resultCode), 100);
+    }
+
     @Override
     protected void onActivityResult(int requestCode, int resultCode, @Nullable Intent data) {
         if (resultCode == Activity.RESULT_OK && data != null && data.hasExtra("iconNames")) {
@@ -122,21 +142,8 @@ public class ManageImageActivity extends BaseAppCompatActivity implements ViewPa
                 int color = data.getIntExtra("iconColor", 0);
                 String colorHex = data.getStringExtra("iconColorHex");
 
-                for (int i = 0; i < names.size(); i++) {
-                    final int index = i;
-                    new Handler().postDelayed(() -> {
-                        Intent singleIntent = new Intent();
-                        singleIntent.putExtra("iconName", names.get(index));
-                        singleIntent.putExtra("iconPath", paths.get(index));
-                        singleIntent.putExtra("iconColor", color);
-                        singleIntent.putExtra("iconColorHex", colorHex);
-                        super.onActivityResult(requestCode, resultCode, singleIntent);
-                        
-                        if (index == names.size() - 1) {
-                            SketchwareUtil.toast("Imported " + names.size() + " icons successfully!");
-                        }
-                    }, i * 300L); // 300ms delay per icon
-                }
+                // Start the sequential processing queue
+                processImportQueue(0, names, paths, color, colorHex, requestCode, resultCode);
                 return;
             }
         }

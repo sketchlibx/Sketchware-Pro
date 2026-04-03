@@ -86,7 +86,6 @@ public class BuildSettingsBottomSheet extends BottomSheetDialogFragment {
         super.onStart();
         View bottomSheet = getDialog().findViewById(com.google.android.material.R.id.design_bottom_sheet);
         if (bottomSheet != null) {
-            bottomSheet.getLayoutParams().height = ViewGroup.LayoutParams.MATCH_PARENT;
             BottomSheetBehavior.from(bottomSheet).setState(BottomSheetBehavior.STATE_EXPANDED);
             BottomSheetBehavior.from(bottomSheet).setSkipCollapsed(true);
         }

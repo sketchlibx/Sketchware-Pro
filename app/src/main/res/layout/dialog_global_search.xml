@@ -27,6 +27,10 @@
         android:layout_marginTop="16dp"
         android:hint="Search views, logic, components..."
         android:importantForAutofill="noExcludeDescendants"
+        app:boxCornerRadiusBottomEnd="50dp"
+        app:boxCornerRadiusBottomStart="50dp"
+        app:boxCornerRadiusTopEnd="50dp"
+        app:boxCornerRadiusTopStart="50dp"
         app:startIconDrawable="@drawable/ic_mtrl_search">
 
         <com.google.android.material.textfield.TextInputEditText

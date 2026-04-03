@@ -45,6 +45,8 @@ public class AndroidManifestInjection extends BaseAppCompatActivity {
     private AndroidManifestInjectionBinding binding;
     private String sc_id;
     private String currentActivityName;
+    
+    private String customManifestPath;
 
     @Override
     public void onCreate(Bundle savedInstanceState) {
@@ -55,6 +57,7 @@ public class AndroidManifestInjection extends BaseAppCompatActivity {
         if (getIntent().hasExtra("sc_id") && getIntent().hasExtra("file_name")) {
             sc_id = getIntent().getStringExtra("sc_id");
             currentActivityName = getIntent().getStringExtra("file_name").replaceAll(".java", "");
+            customManifestPath = FileUtil.getExternalStorageDir() + "/.sketchware/data/" + sc_id + "/custom_manifest.xml";
         }
 
         setupCustomToolbar();
@@ -209,43 +212,36 @@ public class AndroidManifestInjection extends BaseAppCompatActivity {
             HashMap<String, Object> _item = new HashMap<>();
             _item.put("name", componentName);
             _item.put("value", "android:configChanges=\"orientation|screenSize|keyboardHidden|smallestScreenSize|screenLayout\"");
-
             data.add(_item);
         }
         {
             HashMap<String, Object> _item = new HashMap<>();
             _item.put("name", componentName);
             _item.put("value", "android:hardwareAccelerated=\"true\"");
-
             data.add(_item);
         }
         {
             HashMap<String, Object> _item = new HashMap<>();
             _item.put("name", componentName);
             _item.put("value", "android:supportsPictureInPicture=\"true\"");
-
             data.add(_item);
         }
         {
             HashMap<String, Object> _item = new HashMap<>();
             _item.put("name", componentName);
             _item.put("value", "android:screenOrientation=\"portrait\"");
-
             data.add(_item);
         }
         {
             HashMap<String, Object> _item = new HashMap<>();
             _item.put("name", componentName);
             _item.put("value", "android:theme=\"@style/AppTheme\"");
-
             data.add(_item);
         }
-
         {
             HashMap<String, Object> _item = new HashMap<>();
             _item.put("name", componentName);
             _item.put("value", "android:windowSoftInputMode=\"stateHidden\"");
-
             data.add(_item);
         }
 
@@ -321,19 +317,36 @@ public class AndroidManifestInjection extends BaseAppCompatActivity {
 
     @Override
     public boolean onCreateOptionsMenu(Menu menu) {
-        menu.add(Menu.NONE, Menu.NONE, Menu.NONE, "Show Manifest Source").setIcon(getDrawable(R.drawable.ic_mtrl_code)).setShowAsAction(MenuItem.SHOW_AS_ACTION_ALWAYS);
+        menu.add(Menu.NONE, 101, Menu.NONE, "Edit Full Manifest").setIcon(getDrawable(R.drawable.ic_mtrl_edit)).setShowAsAction(MenuItem.SHOW_AS_ACTION_ALWAYS);
+        menu.add(Menu.NONE, 102, Menu.NONE, "Show Manifest Source").setIcon(getDrawable(R.drawable.ic_mtrl_code)).setShowAsAction(MenuItem.SHOW_AS_ACTION_ALWAYS);
         return true;
     }
 
     @Override
     public boolean onOptionsItemSelected(@NonNull MenuItem menuItem) {
-        String title = menuItem.getTitle().toString();
-        if (title.equals("Show Manifest Source")) {
+        int id = menuItem.getItemId();
+        if (id == 102) {
             showQuickManifestSourceDialog();
+        } else if (id == 101) {
+            editCustomFullManifest();
         } else {
             return false;
         }
         return super.onOptionsItemSelected(menuItem);
+    }
+
+    private void editCustomFullManifest() {
+        if (!FileUtil.isExistFile(customManifestPath)) {
+            // Generate the current compiled manifest as base so user doesn't start empty
+            String source = new yq(getApplicationContext(), sc_id).getFileSrc("AndroidManifest.xml", jC.b(sc_id), jC.a(sc_id), jC.c(sc_id));
+            FileUtil.writeFile(customManifestPath, source);
+        }
+        
+        Intent intent = new Intent(this, SrcCodeEditor.class);
+        intent.putExtra("content", customManifestPath);
+        intent.putExtra("title", "Custom AndroidManifest.xml");
+        intent.putExtra("sc_id", sc_id);
+        startActivity(intent);
     }
 
     private void showQuickManifestSourceDialog() {

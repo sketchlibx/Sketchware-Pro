@@ -37,7 +37,7 @@ public class ProjectSearchEngine {
             String javaName = file.getJavaName();
             String targetFileName = xmlName.isEmpty() ? javaName : xmlName;
 
-            // 1. SCAN REGULAR VIEWS (XML UI)
+            // 1. SCAN VIEWS (XML UI)
             ArrayList<ViewBean> views = jC.a(sc_id).d(targetFileName);
             if (views != null) {
                 for (ViewBean view : views) {
@@ -50,8 +50,7 @@ public class ProjectSearchEngine {
                     }
                 }
             }
-
-            // SCAN DRAWER VIEWS
+            
             ArrayList<ViewBean> drawerViews = jC.a(sc_id).d("_drawer_" + xmlName);
             if (drawerViews != null) {
                 for (ViewBean view : drawerViews) {
@@ -65,7 +64,7 @@ public class ProjectSearchEngine {
                 }
             }
 
-            // 2. SCAN COMPONENTS
+            // 2. SCAN COMPONENTS (Uses Java file name)
             ArrayList<ComponentBean> components = jC.a(sc_id).e(javaName);
             if (components != null) {
                 for (ComponentBean comp : components) {
@@ -78,7 +77,7 @@ public class ProjectSearchEngine {
                 }
             }
 
-            // 3. SCAN VARIABLES & LISTS
+            // 3. SCAN VARIABLES & LISTS (Uses Java file name)
             ArrayList<Pair<Integer, String>> vars = jC.a(sc_id).k(javaName);
             if (vars != null) {
                 for (Pair<Integer, String> var : vars) {
@@ -107,7 +106,7 @@ public class ProjectSearchEngine {
             HashMap<String, ArrayList<BlockBean>> events = jC.a(sc_id).b(javaName);
             if (events != null) {
                 for (Map.Entry<String, ArrayList<BlockBean>> entry : events.entrySet()) {
-                    String eventKey = entry.getKey();
+                    String eventKey = entry.getKey(); 
                     String targetId = eventKey;
                     String eventName = "";
                     

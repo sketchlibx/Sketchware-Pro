@@ -7,6 +7,8 @@ import android.content.Intent;
 import android.os.Bundle;
 import android.text.SpannableString;
 import android.text.style.ForegroundColorSpan;
+import android.view.Menu;
+import android.view.MenuItem;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.BaseAdapter;
@@ -16,9 +18,12 @@ import android.widget.TextView;
 import com.besome.sketch.lib.base.BaseAppCompatActivity;
 import com.google.android.material.dialog.MaterialAlertDialogBuilder;
 
+import java.io.File;
 import java.util.ArrayList;
 import java.util.HashMap;
 
+import a.a.a.jC;
+import a.a.a.yq;
 import mod.hey.studios.code.SrcCodeEditor;
 import mod.hey.studios.util.Helper;
 import mod.remaker.view.CustomAttributeView;
@@ -39,6 +44,8 @@ public class AndroidManifestInjectionDetails extends BaseAppCompatActivity {
     private String constant;
 
     private ActivityManageCustomAttributeBinding binding;
+    
+    private String customJavaPath;
 
     @Override
     public void onCreate(Bundle savedInstanceState) {
@@ -50,6 +57,9 @@ public class AndroidManifestInjectionDetails extends BaseAppCompatActivity {
             src_id = getIntent().getStringExtra("sc_id");
             activityName = getIntent().getStringExtra("file_name").replaceAll(".java", "");
             type = getIntent().getStringExtra("type");
+            
+            String javaFileName = activityName.endsWith("Activity") ? activityName + ".java" : activityName + "Activity.java";
+            customJavaPath = FileUtil.getExternalStorageDir() + "/.sketchware/data/" + src_id + "/custom_java/" + javaFileName;
         }
         ATTRIBUTES_FILE_PATH = FileUtil.getExternalStorageDir().concat("/.sketchware/data/").concat(src_id).concat("/Injection/androidmanifest/attributes.json");
         setupConst();
@@ -62,15 +72,12 @@ public class AndroidManifestInjectionDetails extends BaseAppCompatActivity {
             case "all":
                 constant = "_apply_for_all_activities";
                 break;
-
             case "application":
                 constant = "_application_attrs";
                 break;
-
             case "permission":
                 constant = "_application_permissions";
                 break;
-
             default:
                 constant = activityName;
                 break;
@@ -106,25 +113,42 @@ public class AndroidManifestInjectionDetails extends BaseAppCompatActivity {
             default -> activityName;
         };
         binding.toolbar.setTitle(str);
-
         binding.toolbar.setNavigationOnClickListener(Helper.getBackPressedClickListener(this));
-
-        if (!str.equals("Attributes for all activities") && !str.equals("Application Attributes") && !str.equals("Application Permissions")) {
-            binding.toolbar.setOnMenuItemClickListener(item -> {
-                if (item.getItemId() == R.id.asd_components) {
-                    Intent intent = new Intent(this, SrcCodeEditor.class);
-                    intent.putExtra(SrcCodeEditor.FLAG_FROM_ANDROID_MANIFEST, true);
-                    intent.putExtra("title", activityName + " Components");
-                    intent.putExtra("sc_id", src_id);
-                    intent.putExtra("activity_name", activityName);
-                    startActivity(intent);
-                    return true;
-                }
-                return false;
-            });
-        } else {
-            binding.toolbar.getMenu().clear();
+    }
+    
+    @Override
+    public boolean onCreateOptionsMenu(Menu menu) {
+        if (!type.equals("all") && !type.equals("application") && !type.equals("permission")) {
+            menu.add(Menu.NONE, 201, Menu.NONE, "Edit Full Custom Java").setIcon(getDrawable(R.drawable.ic_mtrl_java)).setShowAsAction(MenuItem.SHOW_AS_ACTION_ALWAYS);
+            menu.add(Menu.NONE, 202, Menu.NONE, "Edit ASD Components").setIcon(getDrawable(R.drawable.ic_mtrl_component)).setShowAsAction(MenuItem.SHOW_AS_ACTION_ALWAYS);
         }
+        return true;
+    }
+    
+    @Override
+    public boolean onOptionsItemSelected(MenuItem item) {
+        if (item.getItemId() == 201) {
+            if (!FileUtil.isExistFile(customJavaPath)) {
+                String javaFileName = activityName.endsWith("Activity") ? activityName + ".java" : activityName + "Activity.java";
+                String source = new yq(getApplicationContext(), src_id).getFileSrc(javaFileName, jC.b(src_id), jC.a(src_id), jC.c(src_id));
+                FileUtil.writeFile(customJavaPath, source);
+            }
+            Intent intent = new Intent(this, SrcCodeEditor.class);
+            intent.putExtra("content", customJavaPath);
+            intent.putExtra("title", "Custom " + activityName + ".java");
+            intent.putExtra("sc_id", src_id);
+            startActivity(intent);
+            return true;
+        } else if (item.getItemId() == 202) {
+            Intent intent = new Intent(this, SrcCodeEditor.class);
+            intent.putExtra(SrcCodeEditor.FLAG_FROM_ANDROID_MANIFEST, true);
+            intent.putExtra("title", activityName + " Components");
+            intent.putExtra("sc_id", src_id);
+            intent.putExtra("activity_name", activityName);
+            startActivity(intent);
+            return true;
+        }
+        return super.onOptionsItemSelected(item);
     }
 
     private void showDial(int pos) {
