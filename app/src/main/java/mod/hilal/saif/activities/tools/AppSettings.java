@@ -300,7 +300,7 @@ public class AppSettings extends BaseAppCompatActivity {
                     try { synchronized (lock) { lock.wait(); } successCount++; } catch (Exception ignored) {}
                 }
             }
-            FileUtil.deleteFile(CloudBackupFactory.getCloudBackupDir()); // Clean temp Cloud Directory
+            FileUtil.deleteFile(CloudBackupFactory.getCloudBackupDir()); 
             
             int finalSuccessCount = successCount;
             runOnUiThread(() -> {
@@ -400,7 +400,7 @@ public class AppSettings extends BaseAppCompatActivity {
                 });
                 try { synchronized (lock) { lock.wait(); } } catch (Exception ignored) {}
             }
-            FileUtil.deleteFile(downloadPath); // Clean temp restore path
+            FileUtil.deleteFile(downloadPath); 
             runOnUiThread(progress::dismiss);
         }).start();
     }
@@ -559,7 +559,33 @@ public class AppSettings extends BaseAppCompatActivity {
 
         DialogSelectApkToSignBinding binding = DialogSelectApkToSignBinding.inflate(getLayoutInflater());
         View testkey_root = binding.getRoot();
-        TextView apk_path_txt = testkey_root.findViewById(R.id.apkPathTxt); // Fallback standard ID finding
+
+        int tvId = getResources().getIdentifier("tv_path", "id", getPackageName());
+        if (tvId == 0) tvId = getResources().getIdentifier("apk_path", "id", getPackageName());
+        if (tvId == 0) tvId = getResources().getIdentifier("tv_apk_path", "id", getPackageName());
+        
+        TextView foundTextView = null;
+        if (tvId != 0) {
+            foundTextView = testkey_root.findViewById(tvId);
+        }
+        
+        if (foundTextView == null) {
+            ArrayList<View> views = new ArrayList<>();
+            views.add(testkey_root);
+            while (!views.isEmpty()) {
+                View v = views.remove(0);
+                if (v instanceof TextView && !(v instanceof Button) && v.getId() != binding.selectFile.getId()) {
+                    foundTextView = (TextView) v;
+                    break;
+                }
+                if (v instanceof ViewGroup) {
+                    ViewGroup vg = (ViewGroup) v;
+                    for (int i = 0; i < vg.getChildCount(); i++) views.add(vg.getChildAt(i));
+                }
+            }
+        }
+        
+        final TextView apk_path_txt = foundTextView; 
 
         binding.selectFile.setOnClickListener(v -> {
             FilePickerOptions options = new FilePickerOptions();
