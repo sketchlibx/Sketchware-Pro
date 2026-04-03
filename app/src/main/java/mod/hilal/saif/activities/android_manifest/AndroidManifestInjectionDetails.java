@@ -128,6 +128,7 @@ public class AndroidManifestInjectionDetails extends BaseAppCompatActivity {
     @Override
     public boolean onOptionsItemSelected(MenuItem item) {
         if (item.getItemId() == 201) {
+            // Generates the base and opens the Custom Java editor.
             if (!FileUtil.isExistFile(customJavaPath)) {
                 String javaFileName = activityName.endsWith("Activity") ? activityName + ".java" : activityName + "Activity.java";
                 String source = new yq(getApplicationContext(), src_id).getFileSrc(javaFileName, jC.b(src_id), jC.a(src_id), jC.c(src_id));

@@ -2,7 +2,8 @@
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
-    android:layout_height="wrap_content"
+    android:layout_height="match_parent"
+    android:background="?attr/colorSurface"
     android:orientation="vertical">
 
     <com.google.android.material.bottomsheet.BottomSheetDragHandleView
@@ -13,24 +14,26 @@
         android:id="@+id/title"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:layout_marginEnd="20dp"
-        android:layout_marginStart="20dp"
+        android:layout_marginEnd="16dp"
+        android:layout_marginStart="16dp"
         android:text="Global Project Search"
-        android:textAppearance="?attr/textAppearanceTitleLarge" />
+        android:textColor="?attr/colorOnSurface"
+        android:textStyle="bold"
+        android:textSize="18sp" />
 
     <com.google.android.material.textfield.TextInputLayout
         android:id="@+id/search_input_layout"
-        style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox"
+        style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox.Dense"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:layout_marginHorizontal="20dp"
-        android:layout_marginTop="16dp"
+        android:layout_marginHorizontal="16dp"
+        android:layout_marginTop="12dp"
         android:hint="Search views, logic, components..."
         android:importantForAutofill="noExcludeDescendants"
-        app:boxCornerRadiusBottomEnd="50dp"
-        app:boxCornerRadiusBottomStart="50dp"
-        app:boxCornerRadiusTopEnd="50dp"
-        app:boxCornerRadiusTopStart="50dp"
+        app:boxCornerRadiusBottomEnd="8dp"
+        app:boxCornerRadiusBottomStart="8dp"
+        app:boxCornerRadiusTopEnd="8dp"
+        app:boxCornerRadiusTopStart="8dp"
         app:startIconDrawable="@drawable/ic_mtrl_search">
 
         <com.google.android.material.textfield.TextInputEditText
@@ -45,18 +48,19 @@
         android:id="@+id/search_info"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:layout_marginHorizontal="20dp"
-        android:layout_marginTop="16dp"
+        android:layout_marginHorizontal="16dp"
+        android:layout_marginTop="12dp"
         android:text="Start typing to instantly scan your entire project's XML layout, logic blocks, and components."
-        android:textColor="?attr/colorOnSurface"
-        android:textAppearance="?attr/textAppearanceBodyMedium" />
+        android:textColor="?attr/colorOnSurfaceVariant"
+        android:textSize="13sp" />
 
     <androidx.recyclerview.widget.RecyclerView
         android:id="@+id/rv_search_results"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:layout_marginHorizontal="8dp"
-        android:layout_marginTop="12dp"
+        android:layout_marginTop="8dp"
+        android:paddingBottom="16dp"
+        android:clipToPadding="false"
         android:nestedScrollingEnabled="true"
         app:layoutManager="androidx.recyclerview.widget.LinearLayoutManager" />
 

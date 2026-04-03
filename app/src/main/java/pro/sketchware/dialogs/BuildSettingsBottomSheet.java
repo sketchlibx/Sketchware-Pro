@@ -67,9 +67,18 @@ public class BuildSettingsBottomSheet extends BottomSheetDialogFragment {
         };
     }
 
-    public static void handleJavaVersionChange(String choice) {
+    public void handleJavaVersionChange(String choice) {
         if (choice.equals(SETTING_JAVA_VERSION_1_7)) {
             SketchwareUtil.toast("Warning: Java 1.7 does not support modern AndroidX libraries.");
+        } else if (choice.equals(SETTING_JAVA_VERSION_11) || choice.equals(SETTING_JAVA_VERSION_17)) {
+            for (int i = 0; i < binding.rgDexer.getChildCount(); i++) {
+                RadioButton rb = (RadioButton) binding.rgDexer.getChildAt(i);
+                if (rb.getText().toString().equals("D8")) {
+                    rb.setChecked(true);
+                    break;
+                }
+            }
+            SketchwareUtil.toast("D8 compiler auto-selected. Dx does not support Java " + choice + ".");
         }
     }
 
@@ -163,6 +172,17 @@ public class BuildSettingsBottomSheet extends BottomSheetDialogFragment {
                 if (!isChecked) return;
                 if (key.equals(SETTING_JAVA_VERSION)) {
                     handleJavaVersionChange(option);
+                } else if (key.equals(SETTING_DEXER)) {
+                    // Prevent Dx selection if Java 11 or 17 is active
+                    String activeJava = projectSettings.getValue(SETTING_JAVA_VERSION, "1.8");
+                    if (option.equals("Dx") && (activeJava.equals(SETTING_JAVA_VERSION_11) || activeJava.equals(SETTING_JAVA_VERSION_17))) {
+                        SketchwareUtil.toast("Dx cannot be used with Java " + activeJava + ".");
+                        radioButton.setChecked(false);
+                        for (int i = 0; i < radioGroup.getChildCount(); i++) {
+                            RadioButton rb = (RadioButton) radioGroup.getChildAt(i);
+                            if (rb.getText().toString().equals("D8")) rb.setChecked(true);
+                        }
+                    }
                 }
             });
             radioGroup.addView(radioButton);

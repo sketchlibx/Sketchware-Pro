@@ -14,6 +14,8 @@ import java.util.LinkedList;
 
 import a.a.a.ProjectBuilder;
 import mod.hey.studios.project.ProjectSettings;
+import mod.pranav.build.JarBuilder;
+import mod.jbk.util.LogUtil;
 import pro.sketchware.utility.FileUtil;
 
 public class DexCompiler {
@@ -24,15 +26,35 @@ public class DexCompiler {
             minApiLevel = Integer.parseInt(builder.settings.getValue(
                     ProjectSettings.SETTING_MINIMUM_SDK_VERSION, "21"));
         } catch (NumberFormatException e) {
-            throw new CompilationFailedException("Invalid minSdkVersion specified in Project Settings" + e.getMessage());
+            throw new CompilationFailedException("Invalid minSdkVersion specified in Project Settings: " + e.getMessage());
         }
 
         Collection<Path> programFiles = new LinkedList<>();
         if (builder.proguard.isShrinkingEnabled()) {
             programFiles.add(Paths.get(builder.yq.proguardClassesPath));
         } else {
-            for (File file : FileUtil.listFilesRecursively(new File(builder.yq.compiledClassesPath), ".class")) {
-                programFiles.add(file.toPath());
+            // By packaging the classes into a JAR first (just like Proguard does), D8 parses them perfectly without dropping any app class!
+            File compiledClassesDir = new File(builder.yq.compiledClassesPath);
+            if (compiledClassesDir.exists() && compiledClassesDir.list() != null && compiledClassesDir.list().length > 0) {
+                try {
+                    File tempJar = new File(builder.yq.compiledClassesPath + ".jar");
+                    JarBuilder.INSTANCE.generateJar(compiledClassesDir);
+                    if (tempJar.exists()) {
+                        programFiles.add(tempJar.toPath());
+                        LogUtil.d("DexCompiler", "D8 Program File added as JAR to prevent class drop");
+                    } else {
+                        // Fallback
+                        for (File file : FileUtil.listFilesRecursively(compiledClassesDir, ".class")) {
+                            programFiles.add(file.toPath());
+                        }
+                    }
+                } catch (Exception e) {
+                    LogUtil.e("DexCompiler", "Failed to build temp JAR for D8", e);
+                    // Fallback
+                    for (File file : FileUtil.listFilesRecursively(compiledClassesDir, ".class")) {
+                        programFiles.add(file.toPath());
+                    }
+                }
             }
         }
 
@@ -43,9 +65,9 @@ public class DexCompiler {
 
         D8.run(D8Command.builder()
                 .setMode(CompilationMode.RELEASE)
-                .setIntermediate(false) // Set to false to force final DEX generation
+                .setIntermediate(false)
                 .setMinApiLevel(minApiLevel)
-                .setDisableDesugaring(false) // Must be false for Java 11/17
+                .setDisableDesugaring(false) // Always keep desugaring ENABLED (setDisable=false) for backwards compatibility
                 .addLibraryFiles(libraryFiles)
                 .setOutput(new File(builder.yq.binDirectoryPath, "dex").toPath(), OutputMode.DexIndexed)
                 .addProgramFiles(programFiles)

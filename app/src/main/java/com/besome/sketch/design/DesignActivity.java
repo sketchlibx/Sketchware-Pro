@@ -100,6 +100,7 @@ import mod.agus.jcoderz.editor.manage.resource.ManageResourceActivity;
 import mod.bobur.FloatingProgressWindow;
 import mod.hey.studios.activity.managers.assets.ManageAssetsActivity;
 import mod.hey.studios.activity.managers.java.ManageJavaActivity;
+import mod.hey.studios.code.SrcCodeEditor;
 import mod.hey.studios.compiler.kotlin.KotlinCompilerBridge;
 import mod.hey.studios.project.custom_blocks.CustomBlocksDialog;
 import mod.hey.studios.project.proguard.ManageProguardActivity;
@@ -109,7 +110,6 @@ import mod.hey.studios.project.stringfog.StringfogHandler;
 import mod.hey.studios.util.Helper;
 import mod.hey.studios.util.SystemLogPrinter;
 import mod.sketchlibx.search.GlobalSearchDialog;
-import com.besome.sketch.beans.ProjectFileBean;
 import mod.hilal.saif.activities.android_manifest.AndroidManifestInjection;
 import mod.hilal.saif.activities.tools.ConfigActivity;
 import mod.jbk.build.BuildProgressReceiver;
@@ -498,6 +498,12 @@ public class DesignActivity extends BaseAppCompatActivity implements View.OnClic
             showCurrentActivitySrcCode();
             return true;
         });
+        
+        bottomMenu.add(Menu.NONE, 9, Menu.NONE, "Edit Custom Java").setOnMenuItemClickListener(item -> {
+            toCustomJavaEditor();
+            return true;
+        });
+
         bottomMenu.add(Menu.NONE, 4, Menu.NONE, "Install last built APK").setVisible(false).setOnMenuItemClickListener(item -> {
             if (FileUtil.isExistFile(q.finalToInstallApkPath)) {
                 installBuiltApk();
@@ -545,13 +551,15 @@ public class DesignActivity extends BaseAppCompatActivity implements View.OnClic
                     componentTabAdapter.unselectAll();
                 }
                 if (position == 0) {
-                    bottomMenu.findItem(7).setVisible(true);
+                    bottomMenu.findItem(7).setVisible(true); // XML Editor
+                    bottomMenu.findItem(9).setVisible(false); // Custom Java Editor hidden in View Tab
                     if (viewTabAdapter != null) {
                         viewTabAdapter.showHidePropertyView(true);
                         xmlLayoutOrientation.setImageResource(R.drawable.ic_mtrl_screen);
                     }
                 } else if (position == 1) {
-                    bottomMenu.findItem(7).setVisible(false);
+                    bottomMenu.findItem(7).setVisible(false); 
+                    bottomMenu.findItem(9).setVisible(true); // Custom Java Editor visible
                     if (viewTabAdapter != null) {
                         xmlLayoutOrientation.setImageResource(R.drawable.ic_mtrl_code);
                         viewTabAdapter.showHidePropertyView(false);
@@ -559,6 +567,7 @@ public class DesignActivity extends BaseAppCompatActivity implements View.OnClic
                     }
                 } else {
                     bottomMenu.findItem(7).setVisible(false);
+                    bottomMenu.findItem(9).setVisible(true); // Custom Java Editor visible
                     if (viewTabAdapter != null) {
                         xmlLayoutOrientation.setImageResource(R.drawable.ic_mtrl_code);
                         viewTabAdapter.showHidePropertyView(false);
@@ -794,6 +803,42 @@ public class DesignActivity extends BaseAppCompatActivity implements View.OnClic
                 }
                 var scheme = filename.endsWith(".xml") ? CodeViewerActivity.SCHEME_XML : CodeViewerActivity.SCHEME_JAVA;
                 launchActivity(CodeViewerActivity.class, null, new Pair<>("code", code), new Pair<>("sc_id", sc_id), new Pair<>("scheme", scheme));
+            });
+        }).start();
+    }
+
+    private void toCustomJavaEditor() {
+        if (projectFile == null) return;
+        k();
+        new Thread(() -> {
+            String javaFileName = projectFile.getJavaName();
+            if (javaFileName == null || javaFileName.isEmpty()) {
+                javaFileName = currentJavaFileName;
+            }
+            
+            if (javaFileName == null || javaFileName.isEmpty()) {
+                runOnUiThread(() -> { h(); SketchwareUtil.toastError("No Java file selected"); });
+                return;
+            }
+
+            String customJavaDir = FileUtil.getExternalStorageDir() + "/.sketchware/data/" + sc_id + "/custom_java/";
+            FileUtil.makeDir(customJavaDir);
+            String customJavaPath = customJavaDir + javaFileName;
+
+            // Generate initial Base Java from Blocks if Custom Java doesn't exist yet
+            if (!FileUtil.isExistFile(customJavaPath)) {
+                String source = new yq(getApplicationContext(), sc_id).getFileSrc(javaFileName, jC.b(sc_id), jC.a(sc_id), jC.c(sc_id));
+                FileUtil.writeFile(customJavaPath, source);
+            }
+
+            runOnUiThread(() -> {
+                if (isFinishing()) return;
+                h();
+                Intent intent = new Intent(DesignActivity.this, SrcCodeEditor.class);
+                intent.putExtra("content", customJavaPath);
+                intent.putExtra("title", "Custom " + javaFileName);
+                intent.putExtra("sc_id", sc_id);
+                startActivity(intent);
             });
         }).start();
     }
@@ -1395,6 +1440,14 @@ public class DesignActivity extends BaseAppCompatActivity implements View.OnClic
             new Handler(Looper.getMainLooper()).postDelayed(() -> {
                 try {
                     if (result.category.equals("View") && result.targetId != null) {
+                        
+                        // Handle Drawer View specially by opening the drawer first
+                        if (result.title.contains("(Drawer")) {
+                            if (!drawer.isDrawerOpen(androidx.core.view.GravityCompat.END)) {
+                                drawer.openDrawer(androidx.core.view.GravityCompat.END);
+                            }
+                        }
+                        
                         com.besome.sketch.editor.view.ViewProperty viewProperty = findViewById(R.id.view_property);
                         if (viewProperty != null) {
                             if (viewTabAdapter != null) viewTabAdapter.showHidePropertyView(true);
@@ -1409,6 +1462,9 @@ public class DesignActivity extends BaseAppCompatActivity implements View.OnClic
                         intent.putExtra("project_file", projectFile);
                         intent.putExtra("event_text", result.eventName);
                         startActivity(intent);
+                    } else if (result.category.equals("Component") || result.category.equals("Variable") || result.category.equals("List")) {
+                        // Just switching to the tab (handled above via viewPager.setCurrentItem) is enough for components
+                        pro.sketchware.utility.SketchwareUtil.toast("Switched to " + result.category + " tab");
                     }
                 } catch (Exception e) {
                     Log.e("DeepLink", "Failed to resolve deep link", e);
@@ -1416,7 +1472,7 @@ public class DesignActivity extends BaseAppCompatActivity implements View.OnClic
             }, 300);
 
         } else {
-            SketchwareUtil.toastError("Could not find file: " + result.fileName);
+            pro.sketchware.utility.SketchwareUtil.toastError("Could not find file: " + result.fileName);
         }
     }
     
