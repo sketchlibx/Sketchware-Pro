@@ -69,12 +69,10 @@ public class ViewTreeDrawerDialog extends DialogFragment {
         super.onStart();
         Window window = getDialog().getWindow();
         if (window != null) {
-            // Full height, Left Gravity like a navigation drawer
             window.setLayout(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.MATCH_PARENT);
             window.setGravity(Gravity.START);
             window.setWindowAnimations(R.style.Animation_Design_BottomSheetDialog);
             
-            // Apply dim behind the dialog
             WindowManager.LayoutParams params = window.getAttributes();
             params.dimAmount = 0.5f;
             window.setAttributes(params);
@@ -86,12 +84,10 @@ public class ViewTreeDrawerDialog extends DialogFragment {
     @Override
     public View onCreateView(@NonNull LayoutInflater inflater, @Nullable ViewGroup container, @Nullable Bundle savedInstanceState) {
         
-        // 1. Root Layout (Matching DesignDrawer dimensions & style)
         LinearLayout root = new LinearLayout(requireContext());
         root.setOrientation(LinearLayout.VERTICAL);
         root.setLayoutParams(new ViewGroup.LayoutParams(SketchwareUtil.dpToPx(300), ViewGroup.LayoutParams.MATCH_PARENT));
 
-        // Apply MaterialShapeDrawable for Top-Right & Bottom-Right rounded corners
         ShapeAppearanceModel shape = ShapeAppearanceModel.builder()
                 .setTopRightCornerSize(SketchwareUtil.getDip(24))
                 .setBottomRightCornerSize(SketchwareUtil.getDip(24))
@@ -103,7 +99,6 @@ public class ViewTreeDrawerDialog extends DialogFragment {
         root.setBackground(background);
         root.setElevation(SketchwareUtil.dpToPx(3));
 
-        // 2. Header: "Component Tree"
         TextView header = new TextView(requireContext());
         header.setText("Component Tree");
         header.setTextSize(18);
@@ -113,19 +108,16 @@ public class ViewTreeDrawerDialog extends DialogFragment {
         header.setPadding(padding, padding + SketchwareUtil.dpToPx(8), padding, padding);
         root.addView(header);
 
-        // 3. Divider
         View divider = new View(requireContext());
         divider.setBackgroundColor(ThemeUtils.getColor(requireContext(), R.attr.colorOutlineVariant));
         LinearLayout.LayoutParams dividerParams = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, SketchwareUtil.dpToPx(1));
         dividerParams.setMargins(padding, 0, padding, 0);
         root.addView(divider, dividerParams);
 
-        // 4. Horizontal Scroll Wrap (For deeply nested items)
         HorizontalScrollView hsv = new HorizontalScrollView(requireContext());
         hsv.setLayoutParams(new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, 0, 1.0f));
         hsv.setFillViewport(true);
 
-        // 5. RecyclerView
         RecyclerView rv = new RecyclerView(requireContext());
         rv.setLayoutParams(new ViewGroup.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.MATCH_PARENT));
         rv.setLayoutManager(new LinearLayoutManager(getContext()));
@@ -221,12 +213,8 @@ public class ViewTreeDrawerDialog extends DialogFragment {
 
             holder.tvTitle.setText(node.viewBean.id);
 
-            String typeName = "Unknown"; // Default fallback
-            // Safe logic for reflection/string extraction
-            try {
-                typeName = node.viewBean.getClassInfo().getSimpleName();
-            } catch (Exception ignored) { }
-
+            String typeName = ViewBean.getViewTypeName(node.viewBean.type);
+            
             if (node.viewBean.customView != null && !node.viewBean.customView.isEmpty() && !node.viewBean.customView.equals("none") && !node.viewBean.customView.equals("NONE")) {
                 typeName += " (" + node.viewBean.customView + ")";
             }
@@ -235,7 +223,7 @@ public class ViewTreeDrawerDialog extends DialogFragment {
             holder.imgIcon.setImageResource(ViewBean.getViewTypeResId(node.viewBean.type)); 
 
             int paddingBase = SketchwareUtil.dpToPx(16);
-            int paddingDepth = SketchwareUtil.dpToPx(node.depth * 24); // 24dp indentation per depth level
+            int paddingDepth = SketchwareUtil.dpToPx(node.depth * 24);
             holder.rootLayout.setPadding(paddingBase + paddingDepth, holder.rootLayout.getPaddingTop(),
                     holder.rootLayout.getPaddingRight(), holder.rootLayout.getPaddingBottom());
 

@@ -41,6 +41,7 @@ import pro.sketchware.utility.relativelayout.CircularDependencyDetector;
 @SuppressLint("ViewConstructor")
 public class PropertyAttributesItem extends LinearLayout implements View.OnClickListener {
     
+    // Relative Layout Constraints
     private static final String[] PARENT_RELATIVE = {
             "android:layout_centerInParent",
             "android:layout_centerVertical", "android:layout_centerHorizontal",
@@ -66,6 +67,7 @@ public class PropertyAttributesItem extends LinearLayout implements View.OnClick
             "android:layout_above", "android:layout_below"
     );
 
+    // Constraint Layout Constraints (NEW)
     private static final String[] PARENT_CONSTRAINT = {
             "app:layout_constraintTop_toTopOf", "app:layout_constraintTop_toBottomOf",
             "app:layout_constraintBottom_toTopOf", "app:layout_constraintBottom_toBottomOf",
@@ -168,12 +170,13 @@ public class PropertyAttributesItem extends LinearLayout implements View.OnClick
         showParentAttributes();
     }
 
+    // PRO LOGIC: Smart detection for ConstraintLayout Parent
     private boolean isParentConstraintLayout() {
         if (bean == null || bean.parent == null) return false;
         for (ViewBean b : beans) {
             if (b.id.equals(bean.parent)) {
-                String className = "";
-                try { className = b.getClassInfo().getSimpleName(); } catch (Exception ignored) {}
+                // FIXED COMPILATION BUG: Used getViewTypeName instead of reflection
+                String className = ViewBean.getViewTypeName(b.type);
                 if (b.convert != null && b.convert.contains("ConstraintLayout")) return true;
                 return (className != null && className.contains("ConstraintLayout")) || 
                        (b.customView != null && b.customView.contains("ConstraintLayout"));
@@ -215,7 +218,7 @@ public class PropertyAttributesItem extends LinearLayout implements View.OnClick
                                 if (RELATIVE_IDS.contains(attr) || CONSTRAINT_IDS.contains(attr)) {
                                     
                                     List<String> availableIds = new ArrayList<>(ids);
-                                    if (isConstraint) availableIds.add(0, "parent");
+                                    if (isConstraint) availableIds.add(0, "parent"); // Constraint Layout Parent feature
 
                                     new MaterialAlertDialogBuilder(getContext())
                                             .setTitle("Choose a Target")
