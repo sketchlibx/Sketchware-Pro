@@ -482,6 +482,11 @@ public class DesignActivity extends BaseAppCompatActivity implements View.OnClic
             sheet.show(getSupportFragmentManager(), BuildSettingsBottomSheet.TAG);
             return true;
         });
+        bottomMenu.add(Menu.NONE, 99, Menu.NONE, "Advanced Settings").setOnMenuItemClickListener(item -> {
+            mod.sketchlibx.settings.AdvancedSettingsBottomSheet advSheet = new mod.sketchlibx.settings.AdvancedSettingsBottomSheet(sc_id, currentJavaFileName, this);
+            advSheet.show(getSupportFragmentManager(), "AdvancedSettings");
+            return true;
+        });
         bottomMenu.add(Menu.NONE, 2, Menu.NONE, "Clean temporary files").setVisible(false).setOnMenuItemClickListener(item -> {
             new Thread(() -> {
                 FileUtil.deleteFile(q.projectMyscPath);
