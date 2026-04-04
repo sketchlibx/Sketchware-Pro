@@ -1,7 +1,43 @@
 package a.a.a;
 
-import mod.hilal.saif.components.ComponentsHandler;
+import static com.besome.sketch.editor.property.PropertyAttributesItem.RELATIVE_IDS;
 
+import android.annotation.SuppressLint;
+import android.view.Gravity;
+import android.view.View;
+import android.view.ViewGroup;
+import android.widget.ImageView;
+import android.widget.LinearLayout;
+
+import com.besome.sketch.beans.ImageBean;
+import com.besome.sketch.beans.LayoutBean;
+import com.besome.sketch.beans.ProjectFileBean;
+import com.besome.sketch.beans.TextBean;
+import com.besome.sketch.beans.ViewBean;
+import com.besome.sketch.editor.manage.library.material3.Material3LibraryManager;
+
+import org.xmlpull.v1.XmlPullParser;
+import org.xmlpull.v1.XmlPullParserException;
+import org.xmlpull.v1.XmlPullParserFactory;
+
+import java.io.IOException;
+import java.io.StringReader;
+import java.nio.CharBuffer;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.HashSet;
+import java.util.Map;
+import java.util.Set;
+import java.util.regex.Pattern;
+
+import dev.aldi.sayuti.editor.injection.AppCompatInjection;
+import mod.agus.jcoderz.beans.ViewBeans;
+import mod.jbk.util.LogUtil;
+import pro.sketchware.managers.inject.InjectRootLayoutManager;
+import pro.sketchware.utility.InjectAttributeHandler;
+import pro.sketchware.xml.XmlBuilder;
+
+@SuppressLint("RtlHardcoded")
 public class Gx {
     public String className;
     public String[] classPath;
@@ -152,6 +188,10 @@ public class Gx {
 
             case "RelativeLayout":
                 classInfos = "View.Clickable.ViewGroup.RelativeLayout";
+                break;
+
+            case "ConstraintLayout":
+                classInfos = "View.Clickable.ViewGroup.ConstraintLayout";
                 break;
 
             case "ScrollView":

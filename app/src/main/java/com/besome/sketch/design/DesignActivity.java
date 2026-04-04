@@ -631,17 +631,24 @@ public class DesignActivity extends BaseAppCompatActivity implements View.OnClic
     }
 
     private void checkAndInitGit() {
-        if (q == null) return;
-        File projectDir = new File(q.projectMyscPath);
-        File gitDir = new File(projectDir, ".git");
+        String gitWorkspacePath = FileUtil.getExternalStorageDir() + "/.sketchware/data/" + sc_id + "/git_workspace";
+        File gitWorkspace = new File(gitWorkspacePath);
+        File gitDir = new File(gitWorkspace, ".git");
+
         if (!gitDir.exists() || !gitDir.isDirectory()) {
             new MaterialAlertDialogBuilder(this)
                     .setTitle("Initialize Git Repository")
-                    .setMessage("This project does not have a Git repository yet. Do you want to initialize one?")
+                    .setMessage("This project does not have a Git repository yet. It will be created safely in a permanent workspace away from junk files:\n" + gitWorkspacePath)
                     .setPositiveButton("Initialize", (dialog, which) -> {
                         try {
-                            Git.init().setDirectory(projectDir).call();
-                            SketchwareUtil.toast("Git Repository Initialized!");
+                            gitWorkspace.mkdirs();
+                            Git.init().setDirectory(gitWorkspace).call();
+                            
+                            // Automatically add a .gitignore to keep repo clean
+                            File gitignore = new File(gitWorkspace, ".gitignore");
+                            FileUtil.writeFile(gitignore.getAbsolutePath(), "bin/\nbuild/\n*.apk\n*.dex\n.gradle/\nlocal.properties\n");
+
+                            SketchwareUtil.toast("Git Repository Initialized Safely!");
                             openGitClient();
                         } catch (Exception e) {
                             SketchwareUtil.toastError("Failed to init Git: " + e.getMessage());
@@ -653,10 +660,10 @@ public class DesignActivity extends BaseAppCompatActivity implements View.OnClic
             openGitClient();
         }
     }
-    
+
     private void openGitClient() {
-    mod.sketchlibx.project.git.GitClientBottomSheet sheet = new mod.sketchlibx.project.git.GitClientBottomSheet(sc_id);
-    sheet.show(getSupportFragmentManager(), "GitClient");
+        mod.sketchlibx.project.git.GitClientBottomSheet sheet = new mod.sketchlibx.project.git.GitClientBottomSheet(sc_id);
+        sheet.show(getSupportFragmentManager(), "GitClient");
     }
 
     private boolean isDebugApkExists() {

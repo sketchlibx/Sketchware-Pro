@@ -59,6 +59,8 @@ import a.a.a.wq;
 import a.a.a.yq;
 import mod.hilal.saif.activities.tools.ConfigActivity;
 import pro.sketchware.R;
+import pro.sketchware.databinding.DialogCreateNewFileLayoutBinding;
+import pro.sketchware.utility.FileUtil;
 import pro.sketchware.utility.SketchwareUtil;
 import pro.sketchware.utility.ThemeUtils;
 
@@ -66,6 +68,7 @@ public class GitClientBottomSheet extends BottomSheetDialogFragment {
 
     private String sc_id;
     private Git git;
+    private String gitWorkspacePath;
     private final Handler mainHandler = new Handler(Looper.getMainLooper());
     private boolean isDirectPushEnabled = false;
 
@@ -102,10 +105,12 @@ public class GitClientBottomSheet extends BottomSheetDialogFragment {
     public void onCreate(@Nullable Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         isDirectPushEnabled = ConfigActivity.isSettingEnabled(ConfigActivity.SETTING_GIT_DIRECT_PUSH);
+        gitWorkspacePath = FileUtil.getExternalStorageDir() + "/.sketchware/data/" + sc_id + "/git_workspace";
+        
         try {
-            File gitDir = new File(wq.d(sc_id), ".git");
+            File gitDir = new File(gitWorkspacePath, ".git");
             if (gitDir.exists()) {
-                git = Git.open(new File(wq.d(sc_id)));
+                git = Git.open(new File(gitWorkspacePath));
             }
         } catch (Exception e) {
             e.printStackTrace();
@@ -148,7 +153,9 @@ public class GitClientBottomSheet extends BottomSheetDialogFragment {
         if (git != null) git.close();
     }
 
-    //  Changes Tab
+
+    // 1. Changes Tab
+
     private void setupChangesTab(View view) {
         rvChanges = view.findViewById(R.id.rv_changes);
         tvStatusEmpty = view.findViewById(R.id.tv_status_empty);
@@ -222,13 +229,26 @@ public class GitClientBottomSheet extends BottomSheetDialogFragment {
 
     private void performStageAll() {
         if (git == null) return;
-        SketchwareUtil.toast("Auto-generating files & staging...");
+        SketchwareUtil.toast("Syncing core files to Git workspace & staging...");
         new Thread(() -> {
             try {
+                // Generate files to temporary mysc folder
                 yq projectYq = new yq(getContext(), sc_id);
                 projectYq.a(jC.c(sc_id), jC.b(sc_id), jC.a(sc_id));
+
+                // Path to core source in mysc
+                String generatedMain = wq.d(sc_id) + File.separator + "app" + File.separator + "src" + File.separator + "main";
+                // Target path in our safe git workspace
+                String targetMain = gitWorkspacePath + File.separator + "app" + File.separator + "src" + File.separator + "main";
+
+                // Ensure perfect synchronization (deleting first handles deleted blocks/files)
+                FileUtil.deleteFile(targetMain);
+                FileUtil.copyDirectory(new File(generatedMain), new File(targetMain));
+
+                // Add to Git
                 git.add().addFilepattern(".").call();
                 
+                // Track missing/deleted files
                 Status status = git.status().call();
                 if (!status.getMissing().isEmpty()) {
                     org.eclipse.jgit.api.RmCommand rm = git.rm();
@@ -237,7 +257,7 @@ public class GitClientBottomSheet extends BottomSheetDialogFragment {
                 }
 
                 loadGitStatus();
-                mainHandler.post(() -> SketchwareUtil.toast("All files generated & staged!"));
+                mainHandler.post(() -> SketchwareUtil.toast("Files synced & staged cleanly!"));
             } catch (Exception e) {
                 mainHandler.post(() -> SketchwareUtil.toastError("Stage failed: " + e.getMessage()));
             }
@@ -265,7 +285,9 @@ public class GitClientBottomSheet extends BottomSheetDialogFragment {
         }).start();
     }
 
-    // History Tab
+
+    // 2. History Tab
+
     private void setupHistoryTab(View view) {
         rvHistory = view.findViewById(R.id.rv_history);
         tvHistoryEmpty = view.findViewById(R.id.tv_history_empty);
@@ -307,7 +329,9 @@ public class GitClientBottomSheet extends BottomSheetDialogFragment {
         }).start();
     }
 
-    // Branches Tab
+
+    // 3. Branches Tab
+
     private void setupBranchesTab(View view) {
         rvBranches = view.findViewById(R.id.rv_branches);
         ExtendedFloatingActionButton fabNewBranch = view.findViewById(R.id.fab_new_branch);
@@ -335,20 +359,15 @@ public class GitClientBottomSheet extends BottomSheetDialogFragment {
     }
 
     private void showAddBranchDialog() {
-        TextInputEditText input = new TextInputEditText(requireContext());
-        input.setHint("Branch name");
-
-        FrameLayout container = new FrameLayout(requireContext());
-        FrameLayout.LayoutParams params = new FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
-        params.setMargins(48, 24, 48, 24);
-        input.setLayoutParams(params);
-        container.addView(input);
+        DialogCreateNewFileLayoutBinding binding = DialogCreateNewFileLayoutBinding.inflate(getLayoutInflater());
+        binding.chipGroupTypes.setVisibility(View.GONE);
+        binding.inputText.setHint("Branch name");
 
         new MaterialAlertDialogBuilder(requireContext())
                 .setTitle("Create Branch")
-                .setView(container)
+                .setView(binding.getRoot())
                 .setPositiveButton("Create", (dialog, which) -> {
-                    String name = input.getText().toString().trim();
+                    String name = binding.inputText.getText().toString().trim();
                     if (!name.isEmpty()) {
                         createNewBranch(name);
                     }
@@ -371,7 +390,9 @@ public class GitClientBottomSheet extends BottomSheetDialogFragment {
         }).start();
     }
 
-    // Remotes & Network Tab Logic
+
+    // 4. Remotes & Network Tab
+
     private void setupRemotesTab(View view) {
         rvRemotes = view.findViewById(R.id.rv_remotes);
         ExtendedFloatingActionButton fabNewRemote = view.findViewById(R.id.fab_new_remote);
@@ -405,27 +426,35 @@ public class GitClientBottomSheet extends BottomSheetDialogFragment {
     }
 
     private void showAddRemoteDialog() {
+        // Since we need 2 inputs for Remotes, we programmatically create properly styled Material 3 Layouts
         LinearLayout container = new LinearLayout(requireContext());
         container.setOrientation(LinearLayout.VERTICAL);
         container.setPadding(48, 24, 48, 24);
 
-        TextInputEditText nameInput = new TextInputEditText(requireContext());
-        nameInput.setHint("Remote name (e.g. origin)");
-        nameInput.setText("origin");
+        TextInputLayout tilName = new TextInputLayout(requireContext(), null, com.google.android.material.R.style.Widget_Material3_TextInputLayout_OutlinedBox);
+        tilName.setHint("Remote name (e.g. origin)");
+        TextInputEditText etName = new TextInputEditText(requireContext());
+        etName.setText("origin");
+        tilName.addView(etName);
 
-        TextInputEditText urlInput = new TextInputEditText(requireContext());
-        urlInput.setHint("Repository URL (https://...)");
-        urlInput.setPadding(0, 32, 0, 0);
+        TextInputLayout tilUrl = new TextInputLayout(requireContext(), null, com.google.android.material.R.style.Widget_Material3_TextInputLayout_OutlinedBox);
+        tilUrl.setHint("Repository URL (https://...)");
+        TextInputEditText etUrl = new TextInputEditText(requireContext());
+        tilUrl.addView(etUrl);
+        
+        LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(-1, -2);
+        params.setMargins(0, 24, 0, 0);
+        tilUrl.setLayoutParams(params);
 
-        container.addView(nameInput);
-        container.addView(urlInput);
+        container.addView(tilName);
+        container.addView(tilUrl);
 
         new MaterialAlertDialogBuilder(requireContext())
                 .setTitle("Add Remote")
                 .setView(container)
                 .setPositiveButton("Add", (dialog, which) -> {
-                    String name = nameInput.getText().toString().trim();
-                    String url = urlInput.getText().toString().trim();
+                    String name = etName.getText().toString().trim();
+                    String url = etUrl.getText().toString().trim();
                     if (!name.isEmpty() && !url.isEmpty()) {
                         addNewRemote(name, url);
                     }
@@ -451,7 +480,13 @@ public class GitClientBottomSheet extends BottomSheetDialogFragment {
     private CredentialsProvider getCredentials() {
         SharedPreferences prefs = requireContext().getSharedPreferences("GitConfig_" + sc_id, Context.MODE_PRIVATE);
         String token = prefs.getString("pat_token", "");
-        return new UsernamePasswordCredentialsProvider("TOKEN", token);
+        String email = "developer@sketchware.pro";
+        try {
+            email = git.getRepository().getConfig().getString("user", null, "email");
+        } catch (Exception ignored) {}
+
+        // For GitHub/GitLab with PAT, username can be email/anything, and password must be the Token
+        return new UsernamePasswordCredentialsProvider(email, token);
     }
 
     private void performNetworkOperation(String startMessage, NetworkAction action) {
@@ -465,7 +500,10 @@ public class GitClientBottomSheet extends BottomSheetDialogFragment {
                     loadHistory();
                 });
             } catch (Exception e) {
-                mainHandler.post(() -> SketchwareUtil.toastError("Network Operation Failed: " + e.getMessage()));
+                mainHandler.post(() -> {
+                    SketchwareUtil.toastError("Network Error: " + e.getMessage());
+                    Log.e("GitClient", "Network Operation Error", e);
+                });
             }
         }).start();
     }
@@ -474,7 +512,7 @@ public class GitClientBottomSheet extends BottomSheetDialogFragment {
         void execute() throws Exception;
     }
 
-
+    // 5. Settings Tab
     private void setupSettingsTab(View view) {
         TextInputEditText etName = view.findViewById(R.id.et_git_name);
         TextInputEditText etEmail = view.findViewById(R.id.et_git_email);
@@ -515,7 +553,7 @@ public class GitClientBottomSheet extends BottomSheetDialogFragment {
         });
     }
 
-    // Adapters Git (Changes, History, Branches, Remotes)
+    // Adapters (Changes, History, Branches, Remotes)
 
     private static class GitFile {
         String path, statusLabel;
@@ -653,7 +691,6 @@ public class GitClientBottomSheet extends BottomSheetDialogFragment {
         @Override public int getItemCount() { return remotes.size(); }
         class ViewHolder extends RecyclerView.ViewHolder { TextView tvName, tvUrl, tvDelete; ViewHolder(View i, TextView n, TextView u, TextView d) { super(i); tvName=n; tvUrl=u; tvDelete=d; } }
     }
-
 
     private class GitPagerAdapter extends PagerAdapter {
         private final Context context;

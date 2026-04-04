@@ -4,6 +4,7 @@ import android.content.Context;
 import android.graphics.Canvas;
 import android.graphics.Paint;
 import android.graphics.Rect;
+import android.view.MotionEvent;
 import android.view.View;
 
 import androidx.annotation.NonNull;
@@ -21,7 +22,6 @@ public class ItemConstraintLayout extends ConstraintLayout implements ItemView, 
     private boolean isSelected = false;
     private boolean isFixed = false;
     private Paint paint;
-
     private Rect rect;
 
     public ItemConstraintLayout(Context context) {
@@ -40,6 +40,7 @@ public class ItemConstraintLayout extends ConstraintLayout implements ItemView, 
     }
 
     private void initialize(Context context) {
+        setWillNotDraw(false);
         setDrawingCacheEnabled(true);
         setMinimumWidth((int) wB.a(context, 32.0F));
         setMinimumHeight((int) wB.a(context, 32.0F));
@@ -49,17 +50,8 @@ public class ItemConstraintLayout extends ConstraintLayout implements ItemView, 
     }
 
     @Override
-    public void addView(View child, int index) {
-        int childCount = getChildCount();
-        if (index > childCount) {
-            super.addView(child);
-            return;
-        }
-        int i = 0;
-        while (i < childCount && getChildAt(i).getVisibility() != View.GONE) {
-            i++;
-        }
-        super.addView(child, index);
+    public boolean onInterceptTouchEvent(MotionEvent ev) {
+        return false; 
     }
 
     @Override

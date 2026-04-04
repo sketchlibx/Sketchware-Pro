@@ -216,10 +216,27 @@ public class ViewCodeEditorActivity extends BaseAppCompatActivity {
         try {
             if (isContentModified()) {
                 ArrayList<ViewBean> oldLayout = jC.a(sc_id).d(filename);
-                var parser = new ViewBeanParser(editor.getText().toString(), oldLayout);
+                String xmlToParse = editor.getText().toString();
+                xmlToParse = xmlToParse.replace("androidx.constraintlayout.widget.ConstraintLayout", "RelativeLayout");
+                
+                var parser = new ViewBeanParser(xmlToParse, oldLayout);
                 parser.setSkipRoot(true);
 
                 var parsedLayout = parser.parse();
+                
+                if (oldLayout != null) {
+                    for (ViewBean newBean : parsedLayout) {
+                        for (ViewBean oldBean : oldLayout) {
+                            if (newBean.id.equals(oldBean.id) && (oldBean.type == 50 || oldBean.convert.contains("ConstraintLayout"))) {
+                                newBean.type = oldBean.type;
+                                newBean.convert = oldBean.convert;
+                                newBean.isCustomWidget = oldBean.isCustomWidget;
+                                newBean.customView = oldBean.customView;
+                            }
+                        }
+                    }
+                }
+                
                 for (ViewBean viewBean : parsedLayout) {
                     CircularDependencyDetector detector = new CircularDependencyDetector(parsedLayout, viewBean);
                     for (String attr : viewBean.parentAttributes.keySet()) {
@@ -252,7 +269,10 @@ public class ViewCodeEditorActivity extends BaseAppCompatActivity {
     private void exitWithEditedContent() {
         try {
             ArrayList<ViewBean> oldLayout = jC.a(sc_id).d(filename);
-            var parser = new ViewBeanParser(content, oldLayout);
+            String xmlToParse = content;
+            xmlToParse = xmlToParse.replace("androidx.constraintlayout.widget.ConstraintLayout", "RelativeLayout");
+            
+            var parser = new ViewBeanParser(xmlToParse, oldLayout);
             parser.setSkipRoot(true);
             var parsedLayout = parser.parse();
             
@@ -260,15 +280,17 @@ public class ViewCodeEditorActivity extends BaseAppCompatActivity {
                 for (ViewBean newBean : parsedLayout) {
                     for (ViewBean oldBean : oldLayout) {
                         if (newBean.id.equals(oldBean.id)) {
-                            if (newBean.type == 0 || newBean.type == 14) {
+                            if (oldBean.type == 50 || oldBean.convert.contains("ConstraintLayout")) {
+                                newBean.type = oldBean.type;
+                                newBean.convert = oldBean.convert;
+                                newBean.isCustomWidget = oldBean.isCustomWidget;
+                                newBean.customView = oldBean.customView;
+                            } else if (newBean.type == 0 || newBean.type == 14) {
                                 newBean.type = oldBean.type;
                                 newBean.clearClassInfo(); 
                             }
                             newBean.parentType = oldBean.parentType;
                             newBean.parentClassInfo = null; 
-                            newBean.isCustomWidget = oldBean.isCustomWidget;
-                            newBean.customView = oldBean.customView;
-                            newBean.convert = oldBean.convert;
                             break;
                         }
                     }

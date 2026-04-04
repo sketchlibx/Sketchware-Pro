@@ -67,9 +67,6 @@ public class Ox {
         }
     }
 
-    /**
-     * @return The parameter String escaped properly for XML strings
-     */
     private String escapeXML(String str) {
         CharBuffer buffer = CharBuffer.wrap(str);
         StringBuilder result = new StringBuilder(str.length());
@@ -196,7 +193,7 @@ public class Ox {
 
             if (backgroundColor != 0xffffff) {
                 if (backgroundColor != 0) {
-                    int color = backgroundColor; // BUG FIX: Removed & 0xffffff to keep alpha channel
+                    int color = backgroundColor; 
                     if (nx.c().equals("BottomAppBar")) {
                         if (!toNotAdd.contains("app:backgroundTint") && !injectHandler.contains("backgroundTint") && (backgroundResColor != null)) {
                             if (backgroundResColor.startsWith("?") || backgroundResColor.startsWith("@color/")) {
@@ -320,7 +317,6 @@ public class Ox {
                             widgetTag.addAttribute("android", "focusable", "false");
                         }
                         break;
-
                     default:
                         break;
                 }
@@ -355,6 +351,7 @@ public class Ox {
                 writeViewPadding(widgetTag, viewBean);
             }
             writeBackgroundResource(widgetTag, viewBean);
+            
             if (viewBean.getClassInfo().a("ViewGroup")) {
                 writeViewGravity(widgetTag, viewBean);
             }
@@ -408,7 +405,6 @@ public class Ox {
                     widgetTag.addAttribute("app", "sidebar_text_color", "@color/" + resTextColor);
                 }
             } else if (textColor != 0 && !toNotAdd.contains("app:sidebar_text_color")) {
-                // BUG FIX: Removed & 0xffffff
                 widgetTag.addAttribute("app", "sidebar_text_color", formatColor(textColor));
             }
         }
@@ -425,6 +421,7 @@ public class Ox {
                 writeLayoutGravity(widgetTag, viewBean);
             }
         }
+
         if (viewBean.getClassInfo().a("ViewGroup")) {
             for (ViewBean bean : views) {
                 if (bean.parent != null && bean.parent.equals(viewBean.id)) {
@@ -432,6 +429,7 @@ public class Ox {
                 }
             }
         }
+        
         if (!viewBean.inject.isEmpty()) {
             widgetTag.addAttributeValue(viewBean.inject.replaceAll(" ", ""));
         }
@@ -453,8 +451,6 @@ public class Ox {
                 }
             }
         }
-        // Adding tools:listitem allows the direct XML editor to recognize the customView
-        // for ListView, GridView, Spinner, or RecyclerView.
         if ((viewBean.getClassInfo().b("ListView")
                 || viewBean.getClassInfo().b("GridView")
                 || viewBean.getClassInfo().b("Spinner")
@@ -561,9 +557,6 @@ public class Ox {
         }
     }
 
-    /**
-     * @see ImageView.ScaleType
-     */
     private void writeImageScaleType(XmlBuilder nx, ViewBean viewBean) {
         var injectHandler = new InjectAttributeHandler(viewBean);
         Set<String> toNotAdd = readAttributesToReplace(viewBean);
@@ -586,9 +579,6 @@ public class Ox {
         }
     }
 
-    /**
-     * @see Gravity
-     */
     private void writeLayoutGravity(XmlBuilder nx, ViewBean viewBean) {
         var injectHandler = new InjectAttributeHandler(viewBean);
         Set<String> toNotAdd = readAttributesToReplace(viewBean);
@@ -635,9 +625,6 @@ public class Ox {
         }
     }
 
-    /**
-     * @see ViewGroup.MarginLayoutParams
-     */
     private void writeLayoutMargin(XmlBuilder nx, ViewBean viewBean) {
         var injectHandler = new InjectAttributeHandler(viewBean);
         Set<String> toNotAdd = readAttributesToReplace(viewBean);
@@ -669,12 +656,6 @@ public class Ox {
         }
     }
 
-    /**
-     * @see View#getPaddingLeft()
-     * @see View#getPaddingTop()
-     * @see View#getPaddingRight()
-     * @see View#getPaddingBottom()
-     */
     private void writeCardViewPadding(XmlBuilder nx, ViewBean viewBean) {
         var injectHandler = new InjectAttributeHandler(viewBean);
         Set<String> toNotAdd = readAttributesToReplace(viewBean);
@@ -706,12 +687,6 @@ public class Ox {
         }
     }
 
-    /**
-     * @see View#getPaddingLeft()
-     * @see View#getPaddingTop()
-     * @see View#getPaddingRight()
-     * @see View#getPaddingBottom()
-     */
     private void writeViewPadding(XmlBuilder nx, ViewBean viewBean) {
         var injectHandler = new InjectAttributeHandler(viewBean);
         Set<String> toNotAdd = readAttributesToReplace(viewBean);
@@ -777,7 +752,6 @@ public class Ox {
                     nx.addAttribute("android", "textColor", "@color/" + viewBean.text.resTextColor);
                 }
             } else if (!hasAttr("textColor", viewBean) && !toNotAdd.contains("android:textColor") && !injectHandler.contains("textColor")) {
-                // BUG FIX: Removed & 0xffffff
                 nx.addAttribute("android", "textColor", formatColor(viewBean.text.textColor));
             }
         }
@@ -801,7 +775,6 @@ public class Ox {
                             nx.addAttribute("android", "textColorHint", "@color/" + viewBean.text.resHintColor);
                         }
                     } else if (!hasAttr("textColorHint", viewBean) && !toNotAdd.contains("android:textColorHint")) {
-                        // BUG FIX: Removed & 0xffffff
                         nx.addAttribute("android", "textColorHint", formatColor(viewBean.text.hintColor));
                     }
                 }
@@ -984,9 +957,6 @@ public class Ox {
         }
     }
 
-    /**
-     * check whether the attribute (attrName) is injected to the ViewBean or not.
-     */
     private boolean hasAttr(String attrName, ViewBean bean) {
         String inject = bean.inject;
         if (inject == null || inject.isEmpty()) return false;
