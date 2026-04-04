@@ -131,8 +131,9 @@ dependencies {
     implementation platform(libs.firebase.bom)
     implementation libs.bundles.firebase
     
-    // Google Drive Integration
     implementation libs.bundles.googleDrive
+
+    implementation 'org.eclipse.jgit:org.eclipse.jgit:6.5.0.202303070854-r'
 
     coreLibraryDesugaring libs.desugar.jdk.libs.nio
 }

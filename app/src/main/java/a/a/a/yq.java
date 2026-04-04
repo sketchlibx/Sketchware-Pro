@@ -139,6 +139,14 @@ public class yq {
         releaseApkPath = wq.o() + File.separator + projectName + "_release.apk";
     }
 
+    public File getGitDirectory() {
+        return new File(projectMyscPath, ".git");
+    }
+
+    public File getProjectDirectory() {
+        return new File(projectMyscPath);
+    }
+
     public void a() {
         File file = new File(resDirectoryPath + File.separator + "values-v21");
         if (file.exists()) {

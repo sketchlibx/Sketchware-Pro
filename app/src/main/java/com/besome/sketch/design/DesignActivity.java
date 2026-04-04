@@ -67,6 +67,8 @@ import com.google.android.material.tabs.TabLayout;
 import com.google.firebase.crashlytics.FirebaseCrashlytics;
 import com.topjohnwu.superuser.Shell;
 
+import org.eclipse.jgit.api.Git;
+
 import java.io.File;
 import java.lang.ref.WeakReference;
 import java.util.HashMap;
@@ -519,7 +521,7 @@ public class DesignActivity extends BaseAppCompatActivity implements View.OnClic
         });
         
         bottomMenu.add(Menu.NONE, 9, Menu.NONE, "Edit Custom Java")
-            .setVisible(false) // Fixed: Hidden by default on launch
+            .setVisible(false)
             .setOnMenuItemClickListener(item -> {
                 toCustomJavaEditor();
                 return true;
@@ -550,6 +552,11 @@ public class DesignActivity extends BaseAppCompatActivity implements View.OnClic
                 mod.sketchlibx.project.history.TimeTravelBottomSheet sheet = new mod.sketchlibx.project.history.TimeTravelBottomSheet(sc_id, this);
                 sheet.show(getSupportFragmentManager(), "TimeTravel");
                 return true;
+        });
+        
+        bottomMenu.add(Menu.NONE, 10, Menu.NONE, "Git Client").setOnMenuItemClickListener(item -> {
+            checkAndInitGit();
+            return true;
         });
         
         bottomPopupMenu.setOnDismissListener(menu -> btnOptions.setChecked(false));
@@ -621,6 +628,35 @@ public class DesignActivity extends BaseAppCompatActivity implements View.OnClic
             SketchwareUtil.toast("Please allow overlay permission");
         }
         fProgress = new FloatingProgressWindow();
+    }
+
+    private void checkAndInitGit() {
+        if (q == null) return;
+        File projectDir = new File(q.projectMyscPath);
+        File gitDir = new File(projectDir, ".git");
+        if (!gitDir.exists() || !gitDir.isDirectory()) {
+            new MaterialAlertDialogBuilder(this)
+                    .setTitle("Initialize Git Repository")
+                    .setMessage("This project does not have a Git repository yet. Do you want to initialize one?")
+                    .setPositiveButton("Initialize", (dialog, which) -> {
+                        try {
+                            Git.init().setDirectory(projectDir).call();
+                            SketchwareUtil.toast("Git Repository Initialized!");
+                            openGitClient();
+                        } catch (Exception e) {
+                            SketchwareUtil.toastError("Failed to init Git: " + e.getMessage());
+                        }
+                    })
+                    .setNegativeButton("Cancel", null)
+                    .show();
+        } else {
+            openGitClient();
+        }
+    }
+    
+    private void openGitClient() {
+    mod.sketchlibx.project.git.GitClientBottomSheet sheet = new mod.sketchlibx.project.git.GitClientBottomSheet(sc_id);
+    sheet.show(getSupportFragmentManager(), "GitClient");
     }
 
     private boolean isDebugApkExists() {
@@ -836,7 +872,6 @@ public class DesignActivity extends BaseAppCompatActivity implements View.OnClic
     private void toCustomJavaEditor() {
         if (projectFile == null) return;
         
-        // Fixed: Explicit check ensuring Custom Java is on before proceeding
         boolean isCustomJavaEnabled = new ProjectSettings(sc_id).getValue(ProjectSettings.SETTING_ENABLE_CUSTOM_JAVA, "false").equals("true");
         if (!isCustomJavaEnabled) {
             SketchwareUtil.toastError("Custom Java is disabled. Enable it in Advanced Settings first.");
@@ -1095,7 +1130,6 @@ public class DesignActivity extends BaseAppCompatActivity implements View.OnClic
                 builder.generateViewBinding();
                 if (canceled) return;
                 
-                // Fixed: Added Kotlin logic conditional check based on settings
                 boolean isKotlinEnabled = new ProjectSettings(sc_id).getValue(ProjectSettings.SETTING_JAVA_TO_KOTLIN, "false").equals("true");
                 if (isKotlinEnabled) {
                     KotlinCompilerBridge.compileKotlinCodeIfPossible(this, builder);
