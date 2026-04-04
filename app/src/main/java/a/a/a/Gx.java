@@ -443,7 +443,7 @@ public class Gx {
                 break;
 
             default:
-                classInfos = ComponentsHandler.getClassByTypeName(className);
+                classInfos = mod.hilal.saif.components.ComponentsHandler.getClassByTypeName(className);
         }
 
         classPath = classInfos.split("\\.");
