@@ -840,7 +840,8 @@ public class ProjectBuilder {
              context.registerReceiver(receiver, new android.content.IntentFilter("com.sketchware.R8_COMPLETE"));
         }
         
-        Intent intent = new Intent(context, mod.pranav.build.R8Service.class);
+        Intent intent = new Intent();
+        intent.setClassName(context, "mod.pranav.build.R8Service");
         intent.putExtra("sc_id", yq.sc_id);
         intent.putExtra("args_path", argsFile.getAbsolutePath());
         context.startService(intent);

@@ -1031,10 +1031,6 @@ public class ViewEditor extends RelativeLayout implements View.OnClickListener, 
         }
     }
 
-    public void addFab(ViewBean viewBean) {
-        viewPane.addFab(viewBean).setOnTouchListener(this);
-    }
-
     public void a(ItemView syVar, boolean z) {
         if (selectedItem != null) {
             selectedItem.setSelection(false);
