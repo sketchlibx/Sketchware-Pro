@@ -4,6 +4,7 @@ import android.app.Activity;
 import android.net.Uri;
 import android.os.AsyncTask;
 import android.os.Environment;
+import android.util.Log;
 import android.view.LayoutInflater;
 import android.widget.Toast;
 
@@ -209,7 +210,6 @@ public class ASProjectImporter extends AsyncTask<Void, String, Boolean> {
                 scanAndCategorizeJavaFiles(javaDir, layoutToSwActivityName, activityFiles, normalJavaFiles);
             }
 
-            // Create Project Settings to force Custom Java and Custom Manifest
             JSONObject projectSettingsJson = new JSONObject();
             projectSettingsJson.put("enable_custom_java", "true");
             projectSettingsJson.put("enable_custom_manifest", "true");
@@ -250,7 +250,6 @@ public class ASProjectImporter extends AsyncTask<Void, String, Boolean> {
                                         viewStr.append(gson.toJson(bean)).append("\n");
                                     }
                                     viewStr.append("@").append(mappedSwActivityName).append(".xml_fab\n").append(FAB_JSON).append("\n");
-                                    // Use the mapped SW Pro Name (e.g. "main")
                                     fileStr.append("{\"fileName\":\"").append(mappedSwActivityName).append("\",\"fileType\":0,\"keyboardSetting\":0,\"options\":0,\"orientation\":0,\"theme\":-1}\n");
                                 } else {
                                     customViewLayouts.add(rawName);
@@ -267,7 +266,6 @@ public class ASProjectImporter extends AsyncTask<Void, String, Boolean> {
                 }
             }
 
-            // Always ensure at least "main" activity exists to prevent SW Pro crash
             if (!fileStr.toString().contains("\"fileName\":\"main\"")) {
                 fileStr.append("{\"fileName\":\"main\",\"fileType\":0,\"keyboardSetting\":0,\"options\":0,\"orientation\":0,\"theme\":-1}\n");
             }
@@ -428,7 +426,6 @@ public class ASProjectImporter extends AsyncTask<Void, String, Boolean> {
             } else if (f.getName().endsWith(".java") || f.getName().endsWith(".kt")) {
                 String content = FileUtil.readFile(f.getAbsolutePath());
                 
-                // Heuristic check if the file is an Activity
                 boolean isActivity = content.contains("extends Activity") || 
                                      content.contains("extends AppCompatActivity") || 
                                      content.contains(": Activity()") || 
@@ -437,19 +434,16 @@ public class ASProjectImporter extends AsyncTask<Void, String, Boolean> {
                 if (isActivity) {
                     activityFiles.add(f);
                     
-                    // Find the layout it uses (e.g. R.layout.activity_main)
                     Matcher m = Pattern.compile("R\\.layout\\.([a-zA-Z0-9_]+)").matcher(content);
                     if (m.find()) {
-                        String layoutName = m.group(1); // e.g. "activity_main"
+                        String layoutName = m.group(1); 
                         
-                        // Deriving Sketchware internal Activity Name from Java File Name
                         String rawFileName = f.getName().replace(".java", "").replace(".kt", "");
-                        String swActivityName = rawFileName.toLowerCase(); // e.g. "mainactivity" -> "main"
+                        String swActivityName = rawFileName.toLowerCase(); 
                         if (swActivityName.endsWith("activity")) {
                             swActivityName = swActivityName.substring(0, swActivityName.length() - 8);
                         }
                         
-                        // Map the Layout XML name to the SW Activity Name
                         layoutToSwActivityName.put(layoutName, swActivityName);
                     }
                 } else {

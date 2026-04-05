@@ -6,6 +6,7 @@ import android.content.Intent;
 import android.net.Uri;
 import android.os.Bundle;
 import android.os.Handler;
+import android.os.Looper;
 import android.provider.MediaStore;
 import android.view.View;
 import android.view.animation.AnimationUtils;
@@ -440,7 +441,7 @@ public class AddImageActivity extends BaseDialogActivity implements View.OnClick
                     if (activity.chk_collection.isChecked()) {
                         for (ProjectResourceBean imgBean : toAdd) {
                             try {
-                                Op.g().a(activity.sc_id, imgBean); // Manually loop silently
+                                Op.g().a(activity.sc_id, imgBean);
                             } catch (Exception ignored) {} 
                         }
                     }
