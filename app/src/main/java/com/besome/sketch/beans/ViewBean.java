@@ -62,7 +62,6 @@ public class ViewBean extends nA implements Parcelable {
     public static final int VIEW_TYPE_WIDGET_MAPVIEW = 18;
     public static final int VIEW_TYPE_COUNT = 19;
     
-    // 🔥 PRO FIX: Naya Unique ID ConstraintLayout ke liye
     public static final int VIEW_TYPE_LAYOUT_CONSTRAINT = 50; 
 
     @Expose
@@ -306,7 +305,7 @@ public class ViewBean extends nA implements Parcelable {
         String name = switch (type) {
             case VIEW_TYPE_LAYOUT_LINEAR -> "LinearLayout";
             case VIEW_TYPE_LAYOUT_RELATIVE -> "RelativeLayout";
-            case VIEW_TYPE_LAYOUT_CONSTRAINT -> "androidx.constraintlayout.widget.ConstraintLayout";
+            case VIEW_TYPE_LAYOUT_CONSTRAINT -> "ConstraintLayout"; 
             case VIEW_TYPE_LAYOUT_HSCROLLVIEW -> "HorizontalScrollView";
             case VIEW_TYPE_WIDGET_BUTTON -> "Button";
             case VIEW_TYPE_WIDGET_TEXTVIEW -> "TextView";
@@ -377,7 +376,7 @@ public class ViewBean extends nA implements Parcelable {
         inject = other.inject;
         convert = other.convert;
         progressStyle = other.progressStyle;
-        parentAttributes = other.parentAttributes;
+        parentAttributes = new HashMap<>(other.parentAttributes);
         isCustomWidget = other.isCustomWidget;
     }
 

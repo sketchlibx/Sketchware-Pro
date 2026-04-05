@@ -642,9 +642,8 @@ public class DesignActivity extends BaseAppCompatActivity implements View.OnClic
                     .setPositiveButton("Initialize", (dialog, which) -> {
                         try {
                             gitWorkspace.mkdirs();
-                            Git.init().setDirectory(gitWorkspace).call();
+                            Git.init().setDirectory(gitWorkspace).setInitialBranch("main").call();
                             
-                            // Automatically add a .gitignore to keep repo clean
                             File gitignore = new File(gitWorkspace, ".gitignore");
                             FileUtil.writeFile(gitignore.getAbsolutePath(), "bin/\nbuild/\n*.apk\n*.dex\n.gradle/\nlocal.properties\n");
 

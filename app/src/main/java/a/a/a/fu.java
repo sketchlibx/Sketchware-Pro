@@ -5,6 +5,8 @@ import android.content.Intent;
 import android.content.res.Configuration;
 import android.os.Build;
 import android.os.Bundle;
+import android.os.Handler;
+import android.os.Looper;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
@@ -48,7 +50,11 @@ public class fu extends qA implements View.OnClickListener {
             }
             if (!newImportedImages.isEmpty() && getActivity() instanceof ManageImageActivity) {
                 ((ManageImageActivity) requireActivity()).m().a(newImportedImages);
-                ((ManageImageActivity) requireActivity()).f(0);
+                new Handler(Looper.getMainLooper()).postDelayed(() -> {
+                    if (getActivity() != null && !getActivity().isFinishing()) {
+                        ((ManageImageActivity) requireActivity()).f(0);
+                    }
+                }, 200);
             }
         }
     });
@@ -60,6 +66,7 @@ public class fu extends qA implements View.OnClickListener {
 
     private Button btnImport;
     private MaterialCardView layoutBtnImport;
+    private boolean isImportButtonHidden = false;
 
     public void refreshData() {
         collectionImages = Op.g().f();
@@ -78,6 +85,7 @@ public class fu extends qA implements View.OnClickListener {
                 adapter.notifyDataSetChanged();
             }
         }
+        hideImportButton();
     }
 
     public boolean isSelecting() {
@@ -122,9 +130,35 @@ public class fu extends qA implements View.OnClickListener {
         }
         if (count > 0) {
             btnImport.setText(getString(R.string.common_word_import_count, count).toUpperCase());
-            layoutBtnImport.setVisibility(View.VISIBLE);
+            if (layoutBtnImport.getVisibility() != View.VISIBLE || isImportButtonHidden) {
+                showImportButton();
+            }
         } else {
-            layoutBtnImport.setVisibility(View.GONE);
+            hideImportButton();
+        }
+    }
+
+    private void showImportButton() {
+        if (layoutBtnImport != null && (layoutBtnImport.getVisibility() != View.VISIBLE || isImportButtonHidden)) {
+            layoutBtnImport.setVisibility(View.VISIBLE);
+            layoutBtnImport.animate()
+                    .translationY(0f)
+                    .alpha(1.0f)
+                    .setDuration(200L)
+                    .withEndAction(() -> isImportButtonHidden = false)
+                    .start();
+        }
+    }
+
+    private void hideImportButton() {
+        if (layoutBtnImport != null && layoutBtnImport.getVisibility() == View.VISIBLE && !isImportButtonHidden) {
+            isImportButtonHidden = true;
+            layoutBtnImport.animate()
+                    .translationY(200f)
+                    .alpha(0.0f)
+                    .setDuration(200L)
+                    .withEndAction(() -> layoutBtnImport.setVisibility(View.GONE))
+                    .start();
         }
     }
 
@@ -139,7 +173,7 @@ public class fu extends qA implements View.OnClickListener {
     @Override
     public void onClick(View v) {
         if (!mB.a() && v.getId() == R.id.btn_import) {
-            layoutBtnImport.setVisibility(View.GONE);
+            hideImportButton();
             importImages();
         }
     }
@@ -165,7 +199,26 @@ public class fu extends qA implements View.OnClickListener {
         btnImport = requireActivity().findViewById(R.id.btn_import);
         layoutBtnImport = requireActivity().findViewById(R.id.layout_btn_import);
         btnImport.setOnClickListener(this);
+
         layoutBtnImport.setVisibility(View.GONE);
+        layoutBtnImport.setAlpha(0f);
+        layoutBtnImport.setTranslationY(200f);
+        isImportButtonHidden = true;
+
+        binding.imageList.addOnScrollListener(new RecyclerView.OnScrollListener() {
+            @Override
+            public void onScrolled(@NonNull RecyclerView recyclerView, int dx, int dy) {
+                super.onScrolled(recyclerView, dx, dy);
+                if (isSelecting()) {
+                    if (dy > 10 && !isImportButtonHidden) {
+                        hideImportButton();
+                    } else if (dy < -10 && isImportButtonHidden) {
+                        showImportButton();
+                    }
+                }
+            }
+        });
+
         return binding.getRoot();
     }
 
@@ -181,14 +234,12 @@ public class fu extends qA implements View.OnClickListener {
         public void onBindViewHolder(@NonNull ViewHolder holder, int position) {
             ProjectResourceBean image = collectionImages.get(position);
 
-            // 🚀 BUG FIX: Clear old image properly to prevent Recycling Glitch
             Glide.with(requireActivity()).clear(holder.binding.img);
             holder.binding.img.setImageDrawable(null);
 
             holder.binding.chkSelect.setVisibility(View.VISIBLE);
             holder.binding.imgNinePatch.setVisibility(image.isNinePatch() ? View.VISIBLE : View.GONE);
-            
-            // 🚀 UI UPGRADE: Dim image when selected
+
             holder.binding.img.setAlpha(image.isSelected ? 0.5f : 1.0f);
 
             Glide.with(requireActivity())
@@ -197,7 +248,7 @@ public class fu extends qA implements View.OnClickListener {
                     .centerCrop()
                     .error(R.drawable.ic_remove_grey600_24dp)
                     .into(new BitmapImageViewTarget(holder.binding.img).getView());
-                    
+
             holder.binding.tvImageName.setText(image.resName);
             holder.binding.chkSelect.setChecked(image.isSelected);
         }
@@ -220,7 +271,7 @@ public class fu extends qA implements View.OnClickListener {
                 super(binding.getRoot());
                 this.binding = binding;
                 binding.chkSelect.setVisibility(View.VISIBLE);
-                
+
                 binding.img.setOnClickListener(v -> {
                     binding.chkSelect.setChecked(!binding.chkSelect.isChecked());
                     collectionImages.get(getLayoutPosition()).isSelected = binding.chkSelect.isChecked();

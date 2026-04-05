@@ -35,6 +35,7 @@ import a.a.a.uq;
 import a.a.a.yy;
 import mod.hey.studios.util.Helper;
 import pro.sketchware.R;
+import pro.sketchware.utility.SketchwareUtil;
 
 public class AddImageActivity extends BaseDialogActivity implements View.OnClickListener {
     private ArrayList<ProjectResourceBean> existingImages;
@@ -61,6 +62,32 @@ public class AddImageActivity extends BaseDialogActivity implements View.OnClick
     private String dir_path = "";
     private boolean editing = false;
     private ProjectResourceBean image = null;
+
+    @Override
+    protected void onSaveInstanceState(Bundle outState) {
+        super.onSaveInstanceState(outState);
+        if (pickedImageUris != null) {
+            outState.putParcelableArrayList("pickedImageUris", pickedImageUris);
+        }
+        outState.putBoolean("multipleImagesPicked", multipleImagesPicked);
+        outState.putString("imageFilePath", imageFilePath);
+    }
+
+    @Override
+    protected void onRestoreInstanceState(Bundle savedInstanceState) {
+        super.onRestoreInstanceState(savedInstanceState);
+        if (savedInstanceState != null) {
+            pickedImageUris = savedInstanceState.getParcelableArrayList("pickedImageUris");
+            multipleImagesPicked = savedInstanceState.getBoolean("multipleImagesPicked");
+            imageFilePath = savedInstanceState.getString("imageFilePath");
+            
+            if (multipleImagesPicked && pickedImageUris != null && pickedImageUris.size() > 0) {
+                onMultipleImagesPicked(pickedImageUris.size());
+            } else if (imageFilePath != null && !imageFilePath.isEmpty()) {
+                setImageFromFile(imageFilePath);
+            }
+        }
+    }
 
     private void flipImageVertically() {
         if (imageFilePath != null && !imageFilePath.isEmpty()) {
@@ -394,10 +421,11 @@ public class AddImageActivity extends BaseDialogActivity implements View.OnClick
                     int i = 0;
                     while (i < activity.pickedImageUris.size()) {
                         var uri = activity.pickedImageUris.get(i);
-                        var imageName = Helper.getText(activity.ed_input_edittext).trim() + "_" + ++i;
+                        var imageName = Helper.getText(activity.ed_input_edittext).trim() + "_" + (i + 1);
                         var imageFilePath = HB.a(activity.getApplicationContext(), uri);
                         if (imageFilePath == null) {
-                            continue; // Fix applied here!
+                            i++;
+                            continue; 
                         }
                         var image = new ProjectResourceBean(ProjectResourceBean.PROJECT_RES_TYPE_FILE,
                                 imageName, imageFilePath);
@@ -407,12 +435,21 @@ public class AddImageActivity extends BaseDialogActivity implements View.OnClick
                         image.flipVertical = 1;
                         image.flipHorizontal = 1;
                         toAdd.add(image);
+                        i++;
                     }
                     if (activity.chk_collection.isChecked()) {
-                        Op.g().a(activity.sc_id, toAdd, true);
+                        for (ProjectResourceBean imgBean : toAdd) {
+                            try {
+                                Op.g().a(activity.sc_id, imgBean); // Manually loop silently
+                            } catch (Exception ignored) {} 
+                        }
                     }
                     activity.multipleImagesPicked = false;
                     activity.images.addAll(toAdd);
+                    
+                    new Handler(Looper.getMainLooper()).post(() -> {
+                       SketchwareUtil.toast("Images added completely"); 
+                    });
                 }
             } catch (Exception e) {
                 if (e instanceof yy yy) {

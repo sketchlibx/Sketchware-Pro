@@ -1,5 +1,6 @@
 package mod.sketchlibx.project.git;
 
+import android.app.ProgressDialog;
 import android.content.Context;
 import android.content.SharedPreferences;
 import android.graphics.Color;
@@ -44,7 +45,9 @@ import org.eclipse.jgit.lib.Ref;
 import org.eclipse.jgit.lib.StoredConfig;
 import org.eclipse.jgit.revwalk.RevCommit;
 import org.eclipse.jgit.transport.CredentialsProvider;
+import org.eclipse.jgit.transport.PushResult;
 import org.eclipse.jgit.transport.RemoteConfig;
+import org.eclipse.jgit.transport.RemoteRefUpdate;
 import org.eclipse.jgit.transport.URIish;
 import org.eclipse.jgit.transport.UsernamePasswordCredentialsProvider;
 
@@ -72,6 +75,7 @@ public class GitClientBottomSheet extends BottomSheetDialogFragment {
     private String gitWorkspacePath;
     private final Handler mainHandler = new Handler(Looper.getMainLooper());
     private boolean isDirectPushEnabled = false;
+    private ProgressDialog progressDialog;
 
     // Changes Tab
     private RecyclerView rvChanges;
@@ -152,8 +156,29 @@ public class GitClientBottomSheet extends BottomSheetDialogFragment {
     public void onDestroy() {
         super.onDestroy();
         if (git != null) git.close();
+        if (progressDialog != null && progressDialog.isShowing()) progressDialog.dismiss();
     }
 
+    // --- Loading Dialog Logic ---
+    private void showProgress(String message) {
+        mainHandler.post(() -> {
+            if (progressDialog == null) {
+                progressDialog = new ProgressDialog(getContext(), com.google.android.material.R.style.ThemeOverlay_MaterialComponents_Dialog_Alert);
+                progressDialog.setCancelable(false);
+                progressDialog.setIndeterminate(true);
+            }
+            progressDialog.setMessage(message);
+            if (!progressDialog.isShowing()) progressDialog.show();
+        });
+    }
+
+    private void hideProgress() {
+        mainHandler.post(() -> {
+            if (progressDialog != null && progressDialog.isShowing()) {
+                progressDialog.dismiss();
+            }
+        });
+    }
 
     // 1. Changes Tab
 
@@ -230,26 +255,20 @@ public class GitClientBottomSheet extends BottomSheetDialogFragment {
 
     private void performStageAll() {
         if (git == null) return;
-        SketchwareUtil.toast("Syncing core files to Git workspace & staging...");
+        showProgress("Syncing files and generating code...");
         new Thread(() -> {
             try {
-                // Generate files to temporary mysc folder
                 yq projectYq = new yq(getContext(), sc_id);
                 projectYq.a(jC.c(sc_id), jC.b(sc_id), jC.a(sc_id));
 
-                // Path to core source in mysc
                 String generatedMain = wq.d(sc_id) + File.separator + "app" + File.separator + "src" + File.separator + "main";
-                // Target path in our safe git workspace
                 String targetMain = gitWorkspacePath + File.separator + "app" + File.separator + "src" + File.separator + "main";
 
-                // Ensure perfect synchronization (deleting first handles deleted blocks/files)
                 FileUtil.deleteFile(targetMain);
                 FileUtil.copyDirectory(new File(generatedMain), new File(targetMain));
 
-                // Add to Git
                 git.add().addFilepattern(".").call();
                 
-                // Track missing/deleted files
                 Status status = git.status().call();
                 if (!status.getMissing().isEmpty()) {
                     org.eclipse.jgit.api.RmCommand rm = git.rm();
@@ -258,9 +277,15 @@ public class GitClientBottomSheet extends BottomSheetDialogFragment {
                 }
 
                 loadGitStatus();
-                mainHandler.post(() -> SketchwareUtil.toast("Files synced & staged cleanly!"));
+                mainHandler.post(() -> {
+                    hideProgress();
+                    SketchwareUtil.toast("All files generated & staged!");
+                });
             } catch (Exception e) {
-                mainHandler.post(() -> SketchwareUtil.toastError("Stage failed: " + e.getMessage()));
+                mainHandler.post(() -> {
+                    hideProgress();
+                    SketchwareUtil.toastError("Stage failed: " + e.getMessage());
+                });
             }
         }).start();
     }
@@ -268,20 +293,25 @@ public class GitClientBottomSheet extends BottomSheetDialogFragment {
     private void performCommit(boolean pushAfter) {
         if (git == null) return;
         String message = etCommitMsg.getText().toString().trim();
+        showProgress("Committing changes...");
         new Thread(() -> {
             try {
                 git.commit().setMessage(message).call();
                 mainHandler.post(() -> {
+                    hideProgress();
                     etCommitMsg.setText("");
                     SketchwareUtil.toast("Committed successfully!");
                     loadGitStatus();
                     loadHistory();
                 });
                 if (pushAfter) {
-                    performNetworkOperation("Pushing...", () -> git.push().setCredentialsProvider(getCredentials()).call());
+                    performPushOperation();
                 }
             } catch (Exception e) {
-                mainHandler.post(() -> SketchwareUtil.toastError("Commit failed: " + e.getMessage()));
+                mainHandler.post(() -> {
+                    hideProgress();
+                    SketchwareUtil.toastError("Commit failed: " + e.getMessage());
+                });
             }
         }).start();
     }
@@ -378,15 +408,20 @@ public class GitClientBottomSheet extends BottomSheetDialogFragment {
     }
 
     private void createNewBranch(String name) {
+        showProgress("Creating branch...");
         new Thread(() -> {
             try {
                 git.branchCreate().setName(name).call();
                 mainHandler.post(() -> {
+                    hideProgress();
                     SketchwareUtil.toast("Branch created!");
                     loadBranches();
                 });
             } catch (Exception e) {
-                mainHandler.post(() -> SketchwareUtil.toastError("Failed to create branch: " + e.getMessage()));
+                mainHandler.post(() -> {
+                    hideProgress();
+                    SketchwareUtil.toastError("Failed to create branch: " + e.getMessage());
+                });
             }
         }).start();
     }
@@ -407,9 +442,10 @@ public class GitClientBottomSheet extends BottomSheetDialogFragment {
 
         fabNewRemote.setOnClickListener(v -> showAddRemoteDialog());
 
-        btnFetch.setOnClickListener(v -> performNetworkOperation("Fetching...", () -> git.fetch().setCredentialsProvider(getCredentials()).call()));
-        btnPull.setOnClickListener(v -> performNetworkOperation("Pulling...", () -> git.pull().setCredentialsProvider(getCredentials()).call()));
-        btnPush.setOnClickListener(v -> performNetworkOperation("Pushing...", () -> git.push().setCredentialsProvider(getCredentials()).call()));
+        btnFetch.setOnClickListener(v -> performNetworkOperation("Fetching from remote...", "Fetch Completed!", () -> git.fetch().setCredentialsProvider(getCredentials()).call()));
+        btnPull.setOnClickListener(v -> performNetworkOperation("Pulling from remote...", "Pull Completed!", () -> git.pull().setCredentialsProvider(getCredentials()).call()));
+        
+        btnPush.setOnClickListener(v -> performPushOperation());
 
         loadRemotes();
     }
@@ -427,7 +463,6 @@ public class GitClientBottomSheet extends BottomSheetDialogFragment {
     }
 
     private void showAddRemoteDialog() {
-        // Since we need 2 inputs for Remotes, we programmatically create properly styled Material 3 Layouts
         LinearLayout container = new LinearLayout(requireContext());
         container.setOrientation(LinearLayout.VERTICAL);
         container.setPadding(48, 24, 48, 24);
@@ -465,15 +500,20 @@ public class GitClientBottomSheet extends BottomSheetDialogFragment {
     }
 
     private void addNewRemote(String name, String url) {
+        showProgress("Adding remote...");
         new Thread(() -> {
             try {
                 git.remoteAdd().setName(name).setUri(new URIish(url)).call();
                 mainHandler.post(() -> {
+                    hideProgress();
                     SketchwareUtil.toast("Remote added!");
                     loadRemotes();
                 });
             } catch (Exception e) {
-                mainHandler.post(() -> SketchwareUtil.toastError("Failed to add remote: " + e.getMessage()));
+                mainHandler.post(() -> {
+                    hideProgress();
+                    SketchwareUtil.toastError("Failed to add remote: " + e.getMessage());
+                });
             }
         }).start();
     }
@@ -486,22 +526,68 @@ public class GitClientBottomSheet extends BottomSheetDialogFragment {
             email = git.getRepository().getConfig().getString("user", null, "email");
         } catch (Exception ignored) {}
 
-        // For GitHub/GitLab with PAT, username can be email/anything, and password must be the Token
         return new UsernamePasswordCredentialsProvider(email, token);
     }
 
-    private void performNetworkOperation(String startMessage, NetworkAction action) {
-        SketchwareUtil.toast(startMessage);
+    private void performPushOperation() {
+        showProgress("Pushing to remote...");
         new Thread(() -> {
             try {
-                action.execute();
+                String currentBranch = git.getRepository().getBranch();
+                Iterable<PushResult> results = git.push()
+                        .add(currentBranch)
+                        .setCredentialsProvider(getCredentials())
+                        .call();
+
+                boolean hasError = false;
+                StringBuilder errorMsg = new StringBuilder();
+
+                for (PushResult result : results) {
+                    for (RemoteRefUpdate update : result.getRemoteUpdates()) {
+                        if (update.getStatus() != RemoteRefUpdate.Status.OK && update.getStatus() != RemoteRefUpdate.Status.UP_TO_DATE) {
+                            hasError = true;
+                            errorMsg.append(update.getStatus().name());
+                            if (update.getMessage() != null) {
+                                errorMsg.append(" (").append(update.getMessage()).append(")");
+                            }
+                        }
+                    }
+                }
+
+                if (hasError) {
+                    throw new Exception("Push rejected by remote: " + errorMsg.toString());
+                }
+
                 mainHandler.post(() -> {
-                    SketchwareUtil.toast("Operation Successful!");
+                    hideProgress();
+                    SketchwareUtil.toast("Push Completed Successfully!");
                     loadGitStatus();
                     loadHistory();
                 });
             } catch (Exception e) {
                 mainHandler.post(() -> {
+                    hideProgress();
+                    SketchwareUtil.toastError("Network Error: " + e.getMessage());
+                    Log.e("GitClient", "Network Operation Error", e);
+                });
+            }
+        }).start();
+    }
+
+    private void performNetworkOperation(String startMessage, String successMessage, NetworkAction action) {
+        showProgress(startMessage);
+        new Thread(() -> {
+            try {
+                action.execute();
+                mainHandler.post(() -> {
+                    hideProgress();
+                    SketchwareUtil.toast(successMessage);
+                    loadGitStatus();
+                    loadHistory();
+                });
+            } catch (Exception e) {
+                mainHandler.post(() -> {
+                    hideProgress();
                     SketchwareUtil.toastError("Network Error: " + e.getMessage());
                     Log.e("GitClient", "Network Operation Error", e);
                 });
@@ -540,6 +626,7 @@ public class GitClientBottomSheet extends BottomSheetDialogFragment {
                 return;
             }
 
+            showProgress("Saving configuration...");
             try {
                 StoredConfig config = git.getRepository().getConfig();
                 config.setString("user", null, "name", name);
@@ -547,8 +634,12 @@ public class GitClientBottomSheet extends BottomSheetDialogFragment {
                 config.save();
 
                 prefs.edit().putString("pat_token", token).apply();
-                SketchwareUtil.toast("Git Configuration Saved!");
+                mainHandler.postDelayed(() -> {
+                    hideProgress();
+                    SketchwareUtil.toast("Git Configuration Saved!");
+                }, 500);
             } catch (Exception e) {
+                hideProgress();
                 SketchwareUtil.toastError("Failed to save: " + e.getMessage());
             }
         });
@@ -569,30 +660,73 @@ public class GitClientBottomSheet extends BottomSheetDialogFragment {
         private List<GitFile> files = new ArrayList<>();
         public void setFiles(List<GitFile> files) { this.files = files; notifyDataSetChanged(); }
         public boolean hasStagedFiles() { for (GitFile f : files) if (f.isStaged) return true; return false; }
+        
         @NonNull @Override public ViewHolder onCreateViewHolder(@NonNull ViewGroup parent, int viewType) {
-            LinearLayout root = new LinearLayout(parent.getContext()); root.setLayoutParams(new RecyclerView.LayoutParams(-1, -2)); root.setOrientation(0); root.setGravity(16); root.setPadding(0, 16, 0, 16);
-            TextView tvBadge = new TextView(parent.getContext()); tvBadge.setTextSize(12f); tvBadge.setPadding(12, 4, 12, 4); tvBadge.setTextColor(Color.WHITE);
-            LinearLayout.LayoutParams badgeParams = new LinearLayout.LayoutParams(-2, -2); badgeParams.setMarginEnd(16); root.addView(tvBadge, badgeParams);
-            TextView tvPath = new TextView(parent.getContext()); tvPath.setTextSize(14f); tvPath.setMaxLines(1); tvPath.setEllipsize(android.text.TextUtils.TruncateAt.MIDDLE); tvPath.setTextColor(ThemeUtils.getColor(parent.getContext(), R.attr.colorOnSurface));
+            MaterialCardView card = new MaterialCardView(parent.getContext());
+            card.setLayoutParams(new RecyclerView.LayoutParams(-1, -2));
+            ((RecyclerView.LayoutParams) card.getLayoutParams()).setMargins(0, 0, 0, 16);
+            card.setRadius(12f);
+            card.setCardElevation(0f);
+            card.setCardBackgroundColor(ThemeUtils.getColor(parent.getContext(), R.attr.colorSurfaceVariant));
+
+            LinearLayout root = new LinearLayout(parent.getContext());
+            root.setLayoutParams(new ViewGroup.LayoutParams(-1, -2));
+            root.setOrientation(LinearLayout.HORIZONTAL);
+            root.setGravity(Gravity.CENTER_VERTICAL);
+            root.setPadding(32, 24, 32, 24);
+            card.addView(root);
+
+            TextView tvBadge = new TextView(parent.getContext());
+            tvBadge.setTextSize(12f);
+            tvBadge.setPadding(16, 6, 16, 6);
+            tvBadge.setTextColor(Color.WHITE);
+            LinearLayout.LayoutParams badgeParams = new LinearLayout.LayoutParams(-2, -2);
+            badgeParams.setMarginEnd(24);
+            root.addView(tvBadge, badgeParams);
+
+            TextView tvPath = new TextView(parent.getContext());
+            tvPath.setTextSize(14f);
+            tvPath.setMaxLines(1);
+            tvPath.setEllipsize(android.text.TextUtils.TruncateAt.MIDDLE);
+            tvPath.setTextColor(ThemeUtils.getColor(parent.getContext(), R.attr.colorOnSurface));
             root.addView(tvPath, new LinearLayout.LayoutParams(0, -2, 1f));
-            TextView tvAction = new TextView(parent.getContext()); tvAction.setTextSize(12f); tvAction.setPadding(16, 8, 16, 8); tvAction.setTextColor(ThemeUtils.getColor(parent.getContext(), R.attr.colorPrimary)); root.addView(tvAction);
-            return new ViewHolder(root, tvBadge, tvPath, tvAction);
+
+            TextView tvAction = new TextView(parent.getContext());
+            tvAction.setTextSize(12f);
+            tvAction.setPadding(24, 12, 16, 12);
+            tvAction.setTypeface(null, Typeface.BOLD);
+            tvAction.setTextColor(ThemeUtils.getColor(parent.getContext(), R.attr.colorPrimary));
+            root.addView(tvAction);
+            return new ViewHolder(card, tvBadge, tvPath, tvAction);
         }
+        
         @Override public void onBindViewHolder(@NonNull ViewHolder holder, int position) {
             GitFile file = files.get(position);
             holder.tvBadge.setText(file.statusLabel.substring(0, 1));
-            android.graphics.drawable.GradientDrawable gd = new android.graphics.drawable.GradientDrawable(); gd.setColor(file.color); gd.setCornerRadius(8f); holder.tvBadge.setBackground(gd);
+            android.graphics.drawable.GradientDrawable gd = new android.graphics.drawable.GradientDrawable();
+            gd.setColor(file.color); gd.setCornerRadius(12f);
+            holder.tvBadge.setBackground(gd);
             holder.tvPath.setText(file.path);
             holder.tvAction.setText(file.isStaged ? "UNSTAGE" : "STAGE");
+            
             holder.tvAction.setOnClickListener(v -> {
                 if (git == null) return;
+                showProgress("Updating index...");
                 new Thread(() -> {
                     try {
                         if (file.isStaged) git.reset().addPath(file.path).call();
                         else if (file.statusLabel.equals("Deleted")) git.rm().addFilepattern(file.path).call();
                         else git.add().addFilepattern(file.path).call();
-                        loadGitStatus();
-                    } catch (Exception e) { mainHandler.post(() -> SketchwareUtil.toastError("Action failed: " + e.getMessage())); }
+                        mainHandler.post(() -> {
+                            hideProgress();
+                            loadGitStatus();
+                        });
+                    } catch (Exception e) { 
+                        mainHandler.post(() -> {
+                            hideProgress();
+                            SketchwareUtil.toastError("Action failed: " + e.getMessage()); 
+                        });
+                    }
                 }).start();
             });
         }
@@ -606,7 +740,7 @@ public class GitClientBottomSheet extends BottomSheetDialogFragment {
         public void setCommits(List<RevCommit> commits) { this.commits = commits; notifyDataSetChanged(); }
         @NonNull @Override public ViewHolder onCreateViewHolder(@NonNull ViewGroup parent, int viewType) {
             MaterialCardView card = new MaterialCardView(parent.getContext()); card.setLayoutParams(new RecyclerView.LayoutParams(-1, -2)); ((RecyclerView.LayoutParams) card.getLayoutParams()).setMargins(0, 0, 0, 16); card.setRadius(16f); card.setCardElevation(0f); card.setCardBackgroundColor(ThemeUtils.getColor(parent.getContext(), R.attr.colorSurfaceVariant));
-            LinearLayout root = new LinearLayout(parent.getContext()); root.setOrientation(1); root.setPadding(32, 24, 32, 24); card.addView(root);
+            LinearLayout root = new LinearLayout(parent.getContext()); root.setOrientation(LinearLayout.VERTICAL); root.setPadding(32, 24, 32, 24); card.addView(root);
             TextView tvMessage = new TextView(parent.getContext()); tvMessage.setTextSize(16f); tvMessage.setTypeface(null, Typeface.BOLD); tvMessage.setTextColor(ThemeUtils.getColor(parent.getContext(), R.attr.colorOnSurface)); root.addView(tvMessage);
             TextView tvDetails = new TextView(parent.getContext()); tvDetails.setTextSize(12f); tvDetails.setPadding(0, 8, 0, 0); tvDetails.setTextColor(ThemeUtils.getColor(parent.getContext(), R.attr.colorOnSurfaceVariant)); root.addView(tvDetails);
             return new ViewHolder(card, tvMessage, tvDetails);
@@ -625,11 +759,13 @@ public class GitClientBottomSheet extends BottomSheetDialogFragment {
         private String currentBranch = "";
         public void setBranches(List<Ref> branches, String currentBranch) { this.branches = branches; this.currentBranch = currentBranch; notifyDataSetChanged(); }
         @NonNull @Override public ViewHolder onCreateViewHolder(@NonNull ViewGroup parent, int viewType) {
-            LinearLayout root = new LinearLayout(parent.getContext()); root.setLayoutParams(new RecyclerView.LayoutParams(-1, -2)); root.setOrientation(0); root.setGravity(16); root.setPadding(0, 24, 0, 24);
+            MaterialCardView card = new MaterialCardView(parent.getContext()); card.setLayoutParams(new RecyclerView.LayoutParams(-1, -2)); ((RecyclerView.LayoutParams) card.getLayoutParams()).setMargins(0, 0, 0, 16); card.setRadius(12f); card.setCardElevation(0f); card.setCardBackgroundColor(ThemeUtils.getColor(parent.getContext(), R.attr.colorSurfaceVariant));
+            LinearLayout root = new LinearLayout(parent.getContext()); root.setLayoutParams(new ViewGroup.LayoutParams(-1, -2)); root.setOrientation(LinearLayout.HORIZONTAL); root.setGravity(Gravity.CENTER_VERTICAL); root.setPadding(32, 24, 32, 24); card.addView(root);
+            
             TextView tvName = new TextView(parent.getContext()); tvName.setTextSize(16f); tvName.setTextColor(ThemeUtils.getColor(parent.getContext(), R.attr.colorOnSurface)); root.addView(tvName, new LinearLayout.LayoutParams(0, -2, 1f));
-            TextView tvCheckout = new TextView(parent.getContext()); tvCheckout.setTextSize(12f); tvCheckout.setPadding(16, 8, 16, 8); tvCheckout.setTextColor(ThemeUtils.getColor(parent.getContext(), R.attr.colorPrimary)); root.addView(tvCheckout);
-            TextView tvDelete = new TextView(parent.getContext()); tvDelete.setTextSize(12f); tvDelete.setPadding(16, 8, 0, 8); tvDelete.setTextColor(Color.parseColor("#F44336")); root.addView(tvDelete);
-            return new ViewHolder(root, tvName, tvCheckout, tvDelete);
+            TextView tvCheckout = new TextView(parent.getContext()); tvCheckout.setTextSize(12f); tvCheckout.setPadding(16, 8, 16, 8); tvCheckout.setTextColor(ThemeUtils.getColor(parent.getContext(), R.attr.colorPrimary)); tvCheckout.setTypeface(null, Typeface.BOLD); root.addView(tvCheckout);
+            TextView tvDelete = new TextView(parent.getContext()); tvDelete.setTextSize(12f); tvDelete.setPadding(16, 8, 0, 8); tvDelete.setTextColor(Color.parseColor("#F44336")); tvDelete.setTypeface(null, Typeface.BOLD); root.addView(tvDelete);
+            return new ViewHolder(card, tvName, tvCheckout, tvDelete);
         }
         @Override public void onBindViewHolder(@NonNull ViewHolder holder, int position) {
             Ref ref = branches.get(position);
@@ -650,15 +786,17 @@ public class GitClientBottomSheet extends BottomSheetDialogFragment {
                 holder.tvDelete.setText("DELETE");
                 
                 holder.tvCheckout.setOnClickListener(v -> {
+                    showProgress("Switching branch...");
                     new Thread(() -> {
-                        try { git.checkout().setName(name).call(); mainHandler.post(() -> { SketchwareUtil.toast("Switched to " + name); loadBranches(); });
-                        } catch (Exception e) { mainHandler.post(() -> SketchwareUtil.toastError("Checkout failed")); }
+                        try { git.checkout().setName(name).call(); mainHandler.post(() -> { hideProgress(); SketchwareUtil.toast("Switched to " + name); loadBranches(); });
+                        } catch (Exception e) { mainHandler.post(() -> { hideProgress(); SketchwareUtil.toastError("Checkout failed"); }); }
                     }).start();
                 });
                 holder.tvDelete.setOnClickListener(v -> {
+                    showProgress("Deleting branch...");
                     new Thread(() -> {
-                        try { git.branchDelete().setBranchNames(name).setForce(true).call(); mainHandler.post(() -> { SketchwareUtil.toast("Branch deleted"); loadBranches(); });
-                        } catch (Exception e) { mainHandler.post(() -> SketchwareUtil.toastError("Delete failed")); }
+                        try { git.branchDelete().setBranchNames(name).setForce(true).call(); mainHandler.post(() -> { hideProgress(); SketchwareUtil.toast("Branch deleted"); loadBranches(); });
+                        } catch (Exception e) { mainHandler.post(() -> { hideProgress(); SketchwareUtil.toastError("Delete failed"); }); }
                     }).start();
                 });
             }
@@ -671,21 +809,25 @@ public class GitClientBottomSheet extends BottomSheetDialogFragment {
         private List<RemoteConfig> remotes = new ArrayList<>();
         public void setRemotes(List<RemoteConfig> remotes) { this.remotes = remotes; notifyDataSetChanged(); }
         @NonNull @Override public ViewHolder onCreateViewHolder(@NonNull ViewGroup parent, int viewType) {
-            LinearLayout root = new LinearLayout(parent.getContext()); root.setLayoutParams(new RecyclerView.LayoutParams(-1, -2)); root.setOrientation(1); root.setPadding(0, 16, 0, 16);
-            LinearLayout top = new LinearLayout(parent.getContext()); top.setOrientation(0); root.addView(top);
+            MaterialCardView card = new MaterialCardView(parent.getContext()); card.setLayoutParams(new RecyclerView.LayoutParams(-1, -2)); ((RecyclerView.LayoutParams) card.getLayoutParams()).setMargins(0, 0, 0, 16); card.setRadius(12f); card.setCardElevation(0f); card.setCardBackgroundColor(ThemeUtils.getColor(parent.getContext(), R.attr.colorSurfaceVariant));
+            LinearLayout root = new LinearLayout(parent.getContext()); root.setLayoutParams(new ViewGroup.LayoutParams(-1, -2)); root.setOrientation(LinearLayout.VERTICAL); root.setPadding(32, 24, 32, 24); card.addView(root);
+            
+            LinearLayout top = new LinearLayout(parent.getContext()); top.setOrientation(LinearLayout.HORIZONTAL); root.addView(top);
             TextView tvName = new TextView(parent.getContext()); tvName.setTextSize(16f); tvName.setTypeface(null, Typeface.BOLD); tvName.setTextColor(ThemeUtils.getColor(parent.getContext(), R.attr.colorOnSurface)); top.addView(tvName, new LinearLayout.LayoutParams(0, -2, 1f));
-            TextView tvDelete = new TextView(parent.getContext()); tvDelete.setTextSize(12f); tvDelete.setTextColor(Color.parseColor("#F44336")); tvDelete.setText("REMOVE"); top.addView(tvDelete);
-            TextView tvUrl = new TextView(parent.getContext()); tvUrl.setTextSize(12f); tvUrl.setTextColor(ThemeUtils.getColor(parent.getContext(), R.attr.colorOnSurfaceVariant)); root.addView(tvUrl);
-            return new ViewHolder(root, tvName, tvUrl, tvDelete);
+            TextView tvDelete = new TextView(parent.getContext()); tvDelete.setTextSize(12f); tvDelete.setTextColor(Color.parseColor("#F44336")); tvDelete.setText("REMOVE"); tvDelete.setTypeface(null, Typeface.BOLD); top.addView(tvDelete);
+            
+            TextView tvUrl = new TextView(parent.getContext()); tvUrl.setTextSize(12f); tvUrl.setPadding(0, 8, 0, 0); tvUrl.setTextColor(ThemeUtils.getColor(parent.getContext(), R.attr.colorOnSurfaceVariant)); root.addView(tvUrl);
+            return new ViewHolder(card, tvName, tvUrl, tvDelete);
         }
         @Override public void onBindViewHolder(@NonNull ViewHolder holder, int position) {
             RemoteConfig remote = remotes.get(position);
             holder.tvName.setText(remote.getName());
             holder.tvUrl.setText(remote.getURIs().isEmpty() ? "No URL" : remote.getURIs().get(0).toString());
             holder.tvDelete.setOnClickListener(v -> {
+                showProgress("Removing remote...");
                 new Thread(() -> {
-                    try { git.remoteRemove().setRemoteName(remote.getName()).call(); mainHandler.post(() -> { SketchwareUtil.toast("Removed remote"); loadRemotes(); });
-                    } catch (Exception e) { mainHandler.post(() -> SketchwareUtil.toastError("Remove failed")); }
+                    try { git.remoteRemove().setRemoteName(remote.getName()).call(); mainHandler.post(() -> { hideProgress(); SketchwareUtil.toast("Removed remote"); loadRemotes(); });
+                    } catch (Exception e) { mainHandler.post(() -> { hideProgress(); SketchwareUtil.toastError("Remove failed"); }); }
                 }).start();
             });
         }

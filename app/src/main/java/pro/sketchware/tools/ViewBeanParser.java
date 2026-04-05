@@ -183,10 +183,6 @@ public class ViewBeanParser {
                 case XmlPullParser.START_TAG -> {
                     var name = parser.getName();
                     if (!isRootSkipped) {
-                        var view = InvokeUtil.createView(getContext(), name);
-                        if (!(view instanceof ViewGroup)) {
-                            throw new IOException("Root view must be a ViewGroup");
-                        }
                         Map<String, String> attributes = new LinkedHashMap<>();
                         for (int i = 0; i < parser.getAttributeCount(); i++) {
                             if (!parser.getAttributeName(i).startsWith("xmlns")) {

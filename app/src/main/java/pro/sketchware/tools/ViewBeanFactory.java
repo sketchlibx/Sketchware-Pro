@@ -23,8 +23,8 @@ public class ViewBeanFactory {
     }
 
     public static int getConsideredTypeViewByName(String name, int def) {
-        // PRO FIX: Mapping all M3 components perfectly to their native UI Types
         return switch (name) {
+            case "ConstraintLayout" -> ViewBean.VIEW_TYPE_LAYOUT_CONSTRAINT;
             case "MaterialSwitch", "SwitchMaterial" -> ViewBean.VIEW_TYPE_WIDGET_SWITCH;
             case "MaterialCardView", "CardView" -> ViewBeans.VIEW_TYPE_LAYOUT_CARDVIEW;
             case "TextInputEditText" -> ViewBean.VIEW_TYPE_WIDGET_EDITTEXT;
@@ -146,6 +146,10 @@ public class ViewBeanFactory {
                 }
                 if (isRelativeAttr(attrName)) {
                     bean.parentAttributes.put(attrName, parseReferName(attrValue, "/"));
+                    continue;
+                }
+                if (attrName.startsWith("app:layout_constraint")) {
+                    bean.parentAttributes.put(attrName, attrValue);
                     continue;
                 }
                 if (attrName.equals("tools:listitem")) {

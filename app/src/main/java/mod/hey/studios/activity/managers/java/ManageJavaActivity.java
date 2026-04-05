@@ -334,7 +334,7 @@ public class ManageJavaActivity extends BaseAppCompatActivity {
         if (isTreeViewEnabled) {
             if (rootNodes == null) {
                 rootNodes = new ArrayList<>();
-                ArrayList<String> paths = new ArrayList<>(); // Fixed: Changed to ArrayList
+                ArrayList<String> paths = new ArrayList<>();
                 FileUtil.listDir(fpu.getPathJava(sc_id), paths);
                 Helper.sortPaths(paths);
                 for (String p : paths) rootNodes.add(new FileNode(p, 0));
@@ -378,7 +378,7 @@ public class ManageJavaActivity extends BaseAppCompatActivity {
         if (node.isFolder && node.isExpanded) {
             if (node.children == null) {
                 node.children = new ArrayList<>();
-                ArrayList<String> paths = new ArrayList<>(); // Fixed: Changed to ArrayList
+                ArrayList<String> paths = new ArrayList<>();
                 FileUtil.listDir(node.path, paths);
                 Helper.sortPaths(paths);
                 for (String p : paths) {
@@ -397,7 +397,7 @@ public class ManageJavaActivity extends BaseAppCompatActivity {
         public boolean isFolder;
         public boolean isExpanded;
         public int depth;
-        public ArrayList<FileNode> children; // Fixed: Changed to ArrayList
+        public ArrayList<FileNode> children;
 
         public FileNode(String p, int d) {
             path = p;
@@ -409,7 +409,7 @@ public class ManageJavaActivity extends BaseAppCompatActivity {
     }
 
     public class FilesAdapter extends RecyclerView.Adapter<FilesAdapter.ViewHolder> {
-        private final ArrayList<FileNode> nodes; // Fixed: Changed to ArrayList
+        private final ArrayList<FileNode> nodes;
 
         public FilesAdapter(ArrayList<FileNode> nodes) {
             this.nodes = nodes;
@@ -437,19 +437,14 @@ public class ManageJavaActivity extends BaseAppCompatActivity {
             }
 
             if (node.isFolder) {
-                if (isTreeViewEnabled) {
-                    // Fixed: Used ic_mtrl_folder_code instead of missing ic_folder_open
-                    holder.binding.icon.setImageResource(node.isExpanded ? R.drawable.ic_mtrl_folder_code : R.drawable.ic_mtrl_folder);
-                } else {
-                    holder.binding.icon.setImageResource(R.drawable.ic_mtrl_folder);
-                }
+                holder.binding.icon.setImageResource(node.isExpanded ? R.drawable.ic_mtrl_folder_code : R.drawable.ic_mtrl_folder);
             } else if (fileName.endsWith(".java")) {
                 holder.binding.icon.setImageResource(R.drawable.ic_mtrl_java);
             } else if (fileName.endsWith(".kt")) {
                 holder.binding.icon.setImageResource(R.drawable.ic_mtrl_kotlin);
             }
 
-            binding.getRoot().setOnClickListener(view -> {
+            holder.binding.getRoot().setOnClickListener(view -> {
                 if (node.isFolder) {
                     current_path = node.path; 
                     if (isTreeViewEnabled) {
@@ -463,7 +458,7 @@ public class ManageJavaActivity extends BaseAppCompatActivity {
                 goEditFile(position);
             });
 
-            binding.getRoot().setOnLongClickListener(view -> {
+            holder.binding.getRoot().setOnLongClickListener(view -> {
                 current_path = node.isFolder ? node.path : new File(node.path).getParent();
                 itemContextMenu(view, position, Gravity.CENTER);
                 return true;

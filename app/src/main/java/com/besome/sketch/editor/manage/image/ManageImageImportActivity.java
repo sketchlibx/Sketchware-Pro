@@ -24,6 +24,7 @@ import com.besome.sketch.lib.base.BaseAppCompatActivity;
 import com.besome.sketch.lib.ui.EasyDeleteEditText;
 import com.bumptech.glide.Glide;
 import com.bumptech.glide.request.target.BitmapImageViewTarget;
+import com.google.android.material.appbar.MaterialToolbar;
 
 import java.util.ArrayList;
 
@@ -103,15 +104,11 @@ public class ManageImageImportActivity extends BaseAppCompatActivity implements 
         if (!mB.a()) {
             int id = v.getId();
             if (id != R.id.btn_decide) {
-                if (id != R.id.img_backbtn) {
-                    if (id == R.id.tv_sendbtn && !n()) {
-                        Intent intent = new Intent();
-                        intent.putParcelableArrayListExtra("results", selectedCollections);
-                        setResult(RESULT_OK, intent);
-                        finish();
-                    }
-                } else {
-                    onBackPressed();
+                if (id == R.id.tv_sendbtn && !n()) {
+                    Intent intent = new Intent();
+                    intent.putParcelableArrayListExtra("results", selectedCollections);
+                    setResult(RESULT_OK, intent);
+                    finish();
                 }
             } else {
                 String name = Helper.getText(ed_input_edittext);
@@ -144,8 +141,11 @@ public class ManageImageImportActivity extends BaseAppCompatActivity implements 
             finish();
         }
         setContentView(R.layout.manage_image_import);
-        ImageView img_backbtn = findViewById(R.id.img_backbtn);
-        img_backbtn.setOnClickListener(this);
+        
+        MaterialToolbar toolbar = findViewById(R.id.toolbar);
+        setSupportActionBar(toolbar);
+        toolbar.setNavigationOnClickListener(v -> onBackPressed());
+        
         tv_currentnum = findViewById(R.id.tv_currentnum);
         TextView tv_totalnum = findViewById(R.id.tv_totalnum);
         TextView tv_sendbtn = findViewById(R.id.tv_sendbtn);
@@ -264,12 +264,13 @@ public class ManageImageImportActivity extends BaseAppCompatActivity implements 
             }
             viewHolder.img.setBackgroundColor(Color.TRANSPARENT);
 
+            viewHolder.tv_name.setText(selectedCollections.get(position).resName);
+
             Glide.with(getApplicationContext())
                     .load(projectResourceBean.resFullName)
                     .centerCrop()
                     .error(R.drawable.ic_remove_grey600_24dp)
                     .into(new BitmapImageViewTarget(viewHolder.img).getView());
-            viewHolder.tv_name.setText(selectedCollections.get(position).resName);
         }
 
         @Override

@@ -36,6 +36,11 @@ public class ManageImageActivity extends BaseAppCompatActivity implements ViewPa
     private fu collectionImagesFragment;
     private ManageImageBinding binding;
 
+    private ArrayList<String> pendingNames = new ArrayList<>();
+    private ArrayList<String> pendingPaths = new ArrayList<>();
+    private int pendingColor = 0;
+    private String pendingColorHex = "";
+
     public static int getImageGridColumnCount(Context context) {
         var displayMetrics = context.getResources().getDisplayMetrics();
         return (int) (displayMetrics.widthPixels / displayMetrics.density) / 100;
@@ -102,6 +107,10 @@ public class ManageImageActivity extends BaseAppCompatActivity implements ViewPa
             sc_id = getIntent().getStringExtra("sc_id");
         } else {
             sc_id = savedInstanceState.getString("sc_id");
+            pendingNames = savedInstanceState.getStringArrayList("pendingNames");
+            pendingPaths = savedInstanceState.getStringArrayList("pendingPaths");
+            pendingColor = savedInstanceState.getInt("pendingColor");
+            pendingColorHex = savedInstanceState.getString("pendingColorHex");
         }
 
         PagerAdapter pagerAdapter = new PagerAdapter(getSupportFragmentManager());
@@ -111,11 +120,17 @@ public class ManageImageActivity extends BaseAppCompatActivity implements ViewPa
         binding.tabLayout.setupWithViewPager(binding.viewPager);
         
         binding.fab.show();
+        
+        if (pendingNames != null && pendingPaths != null && !pendingNames.isEmpty()) {
+            processImportQueue(0, pendingNames, pendingPaths, pendingColor, pendingColorHex, 0, Activity.RESULT_OK);
+        }
     }
 
     private void processImportQueue(int index, ArrayList<String> names, ArrayList<String> paths, int color, String colorHex, int requestCode, int resultCode) {
         if (index >= names.size()) {
-            // Removed redundant toast as requested!
+            pendingNames.clear();
+            pendingPaths.clear();
+            SketchwareUtil.toast("All images imported successfully.");
             return;
         }
 
@@ -127,9 +142,11 @@ public class ManageImageActivity extends BaseAppCompatActivity implements ViewPa
         
         super.onActivityResult(requestCode, resultCode, singleIntent);
 
-        // Increased delay to 500ms to safely process large queues without dropping items
+        if (!pendingNames.isEmpty()) pendingNames.remove(0);
+        if (!pendingPaths.isEmpty()) pendingPaths.remove(0);
+
         new Handler(Looper.getMainLooper()).postDelayed(() -> 
-            processImportQueue(index + 1, names, paths, color, colorHex, requestCode, resultCode), 500L);
+            processImportQueue(0, pendingNames, pendingPaths, color, colorHex, requestCode, resultCode), 600L);
     }
 
     @Override
@@ -142,7 +159,13 @@ public class ManageImageActivity extends BaseAppCompatActivity implements ViewPa
                 int color = data.getIntExtra("iconColor", 0);
                 String colorHex = data.getStringExtra("iconColorHex");
 
-                processImportQueue(0, names, paths, color, colorHex, requestCode, resultCode);
+                // Save to pending list for safety
+                pendingNames = new ArrayList<>(names);
+                pendingPaths = new ArrayList<>(paths);
+                pendingColor = color;
+                pendingColorHex = colorHex;
+
+                processImportQueue(0, pendingNames, pendingPaths, pendingColor, pendingColorHex, requestCode, resultCode);
                 return;
             }
         }
@@ -159,6 +182,12 @@ public class ManageImageActivity extends BaseAppCompatActivity implements ViewPa
     @Override
     public void onSaveInstanceState(@NonNull Bundle outState) {
         outState.putString("sc_id", sc_id);
+        
+        if (pendingNames != null) outState.putStringArrayList("pendingNames", pendingNames);
+        if (pendingPaths != null) outState.putStringArrayList("pendingPaths", pendingPaths);
+        outState.putInt("pendingColor", pendingColor);
+        outState.putString("pendingColorHex", pendingColorHex);
+        
         super.onSaveInstanceState(outState);
     }
 

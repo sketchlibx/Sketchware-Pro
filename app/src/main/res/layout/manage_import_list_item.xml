@@ -35,7 +35,7 @@
         android:layout_height="wrap_content"
         android:layout_marginTop="10dp"
         android:gravity="center"
-        android:textColor="#ff000000"
+        android:textColor="?attr/colorOnSurfaceVariant"
         android:textSize="10sp"
         tools:text="some_sound" />
 </LinearLayout>

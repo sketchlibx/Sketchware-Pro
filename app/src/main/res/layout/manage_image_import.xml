@@ -1,4 +1,3 @@
-<?xml version="1.0" encoding="utf-8"?>
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
@@ -6,66 +5,61 @@
     android:background="?attr/colorSurface"
     android:orientation="vertical">
 
-    <RelativeLayout
+    <com.google.android.material.appbar.AppBarLayout
         android:layout_width="match_parent"
-        android:layout_height="?attr/actionBarSize"
-        android:background="?attr/colorSurface"
-        android:gravity="center"
-        android:orientation="horizontal"
-        android:paddingHorizontal="8dp">
+        android:layout_height="wrap_content"
+        app:elevation="0dp"
+        android:background="?attr/colorSurface">
 
-        <ImageView
-            android:id="@+id/img_backbtn"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_alignParentStart="true"
-            android:layout_centerVertical="true"
-            android:background="?attr/selectableItemBackgroundBorderless"
-            android:clickable="true"
-            android:focusable="true"
-            android:padding="16dp"
-            android:src="@drawable/arrow_back_white_48dp"
-            app:tint="?attr/colorOnSurface" />
+        <com.google.android.material.appbar.MaterialToolbar
+            android:id="@+id/toolbar"
+            android:layout_width="match_parent"
+            android:layout_height="?attr/actionBarSize"
+            app:titleTextColor="?attr/colorOnSurface"
+            app:navigationIcon="@drawable/arrow_back_white_48dp"
+            app:navigationIconTint="?attr/colorOnSurface"
+            app:titleCentered="false">
 
-        <LinearLayout
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_centerInParent="true"
-            android:orientation="horizontal">
-
-            <com.google.android.material.textview.MaterialTextView
-                android:id="@+id/tv_currentnum"
+            <LinearLayout
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:textAppearance="?attr/textAppearanceTitleMedium" />
+                android:layout_gravity="center"
+                android:orientation="horizontal">
+
+                <com.google.android.material.textview.MaterialTextView
+                    android:id="@+id/tv_currentnum"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:textAppearance="?attr/textAppearanceTitleMedium" />
+
+                <com.google.android.material.textview.MaterialTextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text=" / "
+                    android:textAppearance="?attr/textAppearanceTitleMedium" />
+
+                <com.google.android.material.textview.MaterialTextView
+                    android:id="@+id/tv_totalnum"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:textAppearance="?attr/textAppearanceTitleMedium" />
+            </LinearLayout>
 
             <com.google.android.material.textview.MaterialTextView
+                android:id="@+id/tv_sendbtn"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text=" / "
-                android:textAppearance="?attr/textAppearanceTitleMedium" />
+                android:layout_gravity="end|center_vertical"
+                android:background="?attr/selectableItemBackgroundBorderless"
+                android:clickable="true"
+                android:focusable="true"
+                android:padding="16dp"
+                android:textAllCaps="true"
+                android:textAppearance="?attr/textAppearanceLabelLarge"
+                android:textColor="?attr/colorPrimary" />
 
-            <com.google.android.material.textview.MaterialTextView
-                android:id="@+id/tv_totalnum"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:textAppearance="?attr/textAppearanceTitleMedium" />
-        </LinearLayout>
-
-        <com.google.android.material.textview.MaterialTextView
-            android:id="@+id/tv_sendbtn"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_alignParentEnd="true"
-            android:layout_centerVertical="true"
-            android:background="?attr/selectableItemBackgroundBorderless"
-            android:clickable="true"
-            android:focusable="true"
-            android:padding="16dp"
-            android:textAllCaps="true"
-            android:textAppearance="?attr/textAppearanceLabelLarge"
-            android:textColor="?attr/colorPrimary" />
-    </RelativeLayout>
+        </com.google.android.material.appbar.MaterialToolbar>
+    </com.google.android.material.appbar.AppBarLayout>
 
     <androidx.recyclerview.widget.RecyclerView
         android:id="@+id/recycler_list"
