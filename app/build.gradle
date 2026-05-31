@@ -13,7 +13,7 @@ android {
 
     defaultConfig {
         applicationId = "neo.sketchware"
-        namespace = "neo.sketchware"
+        namespace = "pro.sketchware"
         //noinspection ExpiredTargetSdkVersion since we don't target getting Sketchware Pro on Google Play.
         targetSdk = 28
         minSdk = 26
@@ -144,7 +144,7 @@ tasks.register('createMockGoogleServices') {
             new File("$projectDir/google-services.json").text = secrets
             return
         }
-        def mockFile = file("src/debug/google-services.json")
+        def mockFile = file("$projectDir/google-services.json")
         if (!mockFile.exists()) {
             mockFile.parentFile.mkdirs()
             def mockContent = """{
