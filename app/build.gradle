@@ -144,7 +144,7 @@ tasks.register('createMockGoogleServices') {
             new File("$projectDir/google-services.json").text = secrets
             return
         }
-        def mockFile = file("$projectDir/google-services.json")
+        def mockFile = file("src/debug/google-services.json")
         if (!mockFile.exists()) {
             mockFile.parentFile.mkdirs()
             def mockContent = """{
