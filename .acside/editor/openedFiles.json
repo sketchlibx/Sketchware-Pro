@@ -1,7 +1,7 @@
 {
   "allFiles": [
     {
-      "file": "/storage/emulated/0/AndroidIDEProjects/SketchwarePro/.github/workflows/android.yml",
+      "file": "/storage/emulated/0/AndroidIDEProjects/SketchwareNeo/app/src/main/res/mipmap-anydpi-v26/ic_launcher.xml",
       "selection": {
         "end": {
           "column": 0,
@@ -16,5 +16,5 @@
       }
     }
   ],
-  "selectedFile": "/storage/emulated/0/AndroidIDEProjects/SketchwarePro/.github/workflows/android.yml"
+  "selectedFile": "/storage/emulated/0/AndroidIDEProjects/SketchwareNeo/app/src/main/res/mipmap-anydpi-v26/ic_launcher.xml"
 }

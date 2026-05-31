@@ -12,13 +12,13 @@ android {
     def shortCommitHash = "git rev-parse --short HEAD".execute().text.trim()
 
     defaultConfig {
-        applicationId = "pro.sketchware"
+        applicationId = "neo.sketchware"
         namespace = "pro.sketchware"
         //noinspection ExpiredTargetSdkVersion since we don't target getting Sketchware Pro on Google Play.
         targetSdk = 28
         minSdk = 26
         versionCode = 158
-        versionName = "v7.0.0-beta6.4"
+        versionName = "v7.0.0"
 
         buildConfigField("String", "GIT_HASH", "\"${gitCommitHash}\"")
 
